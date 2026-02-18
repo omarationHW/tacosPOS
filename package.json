@@ -1,0 +1,14 @@
+{
+  "name": "tacos-pos",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/pos",
+    "build": "npm run build --workspace=apps/pos",
+    "preview": "npm run preview --workspace=apps/pos"
+  }
+}

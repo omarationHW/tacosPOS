@@ -1,0 +1,6 @@
+{
+  "name": "@tacos-pos/print-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Print agent for kitchen ticket printing (Fase 3)"
+}
