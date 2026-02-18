@@ -1,34 +1,37 @@
 import { supabase } from '@/lib/supabase';
-import type { CartItem } from '@/components/pos/OrderPanel';
+import type { CartItem, OrderType } from '@/components/pos/OrderPanel';
 
 const TAX_RATE = 0.16;
 
 interface CreateOrderParams {
   items: CartItem[];
   createdBy: string;
+  tableId?: string | null;
+  orderType?: OrderType;
   notes?: string;
 }
 
 interface CreateOrderResult {
   orderId: string;
-  appended: boolean; // true = items added to existing order
+  appended: boolean;
+}
+
+function getItemUnitPrice(item: CartItem): number {
+  return item.price + item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
 }
 
 export function useOrders() {
-  /**
-   * Create a new order OR append items to an existing open order for the same mesa.
-   * If `notes` matches an open/in_progress order, items are added there.
-   */
-  async function createOrder({ items, createdBy, notes }: CreateOrderParams): Promise<CreateOrderResult> {
+  async function createOrder({ items, createdBy, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items en el pedido');
 
-    // Check for existing open order for this mesa
-    if (notes) {
+    // Check for existing open order for the same table (dine-in) or notes match
+    if (tableId) {
       const { data: existing } = await supabase
         .from('orders')
         .select('id, subtotal, tax, total')
-        .eq('notes', notes)
+        .eq('table_id', tableId)
         .in('status', ['open', 'in_progress'])
+        .is('payment_method', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -38,11 +41,11 @@ export function useOrders() {
       }
     }
 
-    return await insertNewOrder({ items, createdBy, notes });
+    return await insertNewOrder({ items, createdBy, tableId, orderType, notes });
   }
 
-  async function insertNewOrder({ items, createdBy, notes }: CreateOrderParams): Promise<CreateOrderResult> {
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  async function insertNewOrder({ items, createdBy, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
+    const subtotal = items.reduce((sum, item) => sum + getItemUnitPrice(item) * item.quantity, 0);
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 
@@ -50,6 +53,8 @@ export function useOrders() {
       .from('orders')
       .insert({
         created_by: createdBy,
+        table_id: tableId || null,
+        order_type: orderType || 'dine_in',
         status: 'open',
         subtotal,
         tax,
@@ -61,21 +66,7 @@ export function useOrders() {
 
     if (orderError) throw orderError;
 
-    const orderItems = items.map((item) => ({
-      order_id: order.id,
-      product_id: item.productId,
-      quantity: item.quantity,
-      unit_price: item.price,
-      subtotal: Math.round(item.price * item.quantity * 100) / 100,
-      status: 'pending' as const,
-      sent_to_kitchen_at: new Date().toISOString(),
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-
-    if (itemsError) throw itemsError;
+    await insertOrderItems(order.id, items);
 
     return { orderId: order.id, appended: false };
   }
@@ -84,25 +75,9 @@ export function useOrders() {
     existing: { id: string; subtotal: number; tax: number; total: number },
     items: CartItem[],
   ): Promise<CreateOrderResult> {
-    // Insert new items
-    const orderItems = items.map((item) => ({
-      order_id: existing.id,
-      product_id: item.productId,
-      quantity: item.quantity,
-      unit_price: item.price,
-      subtotal: Math.round(item.price * item.quantity * 100) / 100,
-      status: 'pending' as const,
-      sent_to_kitchen_at: new Date().toISOString(),
-    }));
+    await insertOrderItems(existing.id, items);
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-
-    if (itemsError) throw itemsError;
-
-    // Recalculate totals
-    const addedSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const addedSubtotal = items.reduce((sum, item) => sum + getItemUnitPrice(item) * item.quantity, 0);
     const newSubtotal = Math.round((existing.subtotal + addedSubtotal) * 100) / 100;
     const newTax = Math.round(newSubtotal * TAX_RATE * 100) / 100;
     const newTotal = Math.round((newSubtotal + newTax) * 100) / 100;
@@ -115,6 +90,53 @@ export function useOrders() {
     if (updateError) throw updateError;
 
     return { orderId: existing.id, appended: true };
+  }
+
+  async function insertOrderItems(orderId: string, items: CartItem[]) {
+    const orderItems = items.map((item) => ({
+      order_id: orderId,
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: getItemUnitPrice(item),
+      subtotal: Math.round(getItemUnitPrice(item) * item.quantity * 100) / 100,
+      status: 'pending' as const,
+      sent_to_kitchen_at: new Date().toISOString(),
+    }));
+
+    const { data: insertedItems, error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems)
+      .select('id');
+
+    if (itemsError) throw itemsError;
+
+    // Insert modifiers for each order item
+    const modifierRows: {
+      order_item_id: string;
+      modifier_id: string;
+      modifier_name: string;
+      price_override: number;
+    }[] = [];
+
+    items.forEach((item, idx) => {
+      if (item.modifiers.length > 0 && insertedItems?.[idx]) {
+        for (const mod of item.modifiers) {
+          modifierRows.push({
+            order_item_id: insertedItems[idx].id,
+            modifier_id: mod.modifierId,
+            modifier_name: mod.name,
+            price_override: mod.priceOverride,
+          });
+        }
+      }
+    });
+
+    if (modifierRows.length > 0) {
+      const { error: modError } = await supabase
+        .from('order_item_modifiers')
+        .insert(modifierRows);
+      if (modError) throw modError;
+    }
   }
 
   async function updateOrderStatus(orderId: string, status: 'open' | 'in_progress' | 'completed' | 'cancelled') {

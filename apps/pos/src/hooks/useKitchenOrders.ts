@@ -39,10 +39,24 @@ export function getOrderPhase(order: KitchenOrder): OrderPhase {
   return 'done';
 }
 
+function playNewOrderSound() {
+  try {
+    const audio = new Audio('/sounds/new-order.wav');
+    audio.volume = 0.7;
+    audio.play().catch(() => {
+      // Browser may block autoplay until user interaction
+    });
+  } catch {
+    // Ignore audio errors
+  }
+}
+
 export function useKitchenOrders() {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const prevOrderIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadDoneRef = useRef(false);
 
   const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
@@ -73,6 +87,19 @@ export function useKitchenOrders() {
         product: Array.isArray(item.product) ? item.product[0] : item.product,
       })),
     })) as KitchenOrder[];
+
+    // Detect new orders and play sound
+    const currentIds = new Set(normalized.map((o) => o.id));
+    if (initialLoadDoneRef.current) {
+      for (const id of currentIds) {
+        if (!prevOrderIdsRef.current.has(id)) {
+          playNewOrderSound();
+          break; // One sound is enough even if multiple new orders
+        }
+      }
+    }
+    prevOrderIdsRef.current = currentIds;
+    initialLoadDoneRef.current = true;
 
     setOrders(normalized);
     setLoading(false);
@@ -142,7 +169,6 @@ export function useKitchenOrders() {
       if (error) throw error;
     }
 
-    // Always re-fetch after advancing so UI updates immediately
     await fetchOrders();
   }
 

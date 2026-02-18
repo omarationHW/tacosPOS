@@ -259,9 +259,12 @@ export interface Database {
           table_id: string | null;
           created_by: string;
           status: 'open' | 'in_progress' | 'completed' | 'cancelled';
+          order_type: 'dine_in' | 'takeout';
           subtotal: number;
           tax: number;
           total: number;
+          discount: number;
+          tip: number;
           payment_method: 'cash' | 'card' | null;
           notes: string | null;
           created_at: string;
@@ -272,9 +275,12 @@ export interface Database {
           table_id?: string | null;
           created_by: string;
           status?: 'open' | 'in_progress' | 'completed' | 'cancelled';
+          order_type?: 'dine_in' | 'takeout';
           subtotal?: number;
           tax?: number;
           total?: number;
+          discount?: number;
+          tip?: number;
           payment_method?: 'cash' | 'card' | null;
           notes?: string | null;
           created_at?: string;
@@ -283,9 +289,12 @@ export interface Database {
         Update: {
           table_id?: string;
           status?: 'open' | 'in_progress' | 'completed' | 'cancelled';
+          order_type?: 'dine_in' | 'takeout';
           subtotal?: number;
           tax?: number;
           total?: number;
+          discount?: number;
+          tip?: number;
           payment_method?: 'cash' | 'card' | null;
           notes?: string | null;
           updated_at?: string;
@@ -513,6 +522,7 @@ export interface Database {
     Enums: {
       user_role: 'admin' | 'cashier' | 'kitchen';
       order_status: 'open' | 'in_progress' | 'completed' | 'cancelled';
+      order_type: 'dine_in' | 'takeout';
       order_item_status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
       table_status: 'available' | 'occupied' | 'reserved';
       payment_method: 'cash' | 'card';

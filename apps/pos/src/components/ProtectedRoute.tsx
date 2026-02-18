@@ -23,7 +23,8 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-    return <Navigate to="/dashboard" replace />;
+    const home = profile.role === 'admin' ? '/reportes' : profile.role === 'kitchen' ? '/kitchen' : '/pos';
+    return <Navigate to={home} replace />;
   }
 
   return <>{children}</>;

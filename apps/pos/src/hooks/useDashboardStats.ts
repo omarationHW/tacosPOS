@@ -6,31 +6,45 @@ interface PopularProduct {
   totalQty: number;
 }
 
+export type DashboardPeriod = 'today' | 'week' | 'month';
+
 interface DashboardStats {
-  ordersToday: number;
-  revenueToday: number;
+  ordersCount: number;
+  revenue: number;
   popularProducts: PopularProduct[];
   loading: boolean;
 }
 
-export function useDashboardStats(): DashboardStats {
-  const [ordersToday, setOrdersToday] = useState(0);
-  const [revenueToday, setRevenueToday] = useState(0);
+function getPeriodStart(period: DashboardPeriod): string {
+  const d = new Date();
+  if (period === 'today') {
+    d.setHours(0, 0, 0, 0);
+  } else if (period === 'week') {
+    d.setDate(d.getDate() - 7);
+    d.setHours(0, 0, 0, 0);
+  } else {
+    d.setMonth(d.getMonth() - 1);
+    d.setHours(0, 0, 0, 0);
+  }
+  return d.toISOString();
+}
+
+export function useDashboardStats(period: DashboardPeriod = 'today'): DashboardStats {
+  const [ordersCount, setOrdersCount] = useState(0);
+  const [revenue, setRevenue] = useState(0);
   const [popularProducts, setPopularProducts] = useState<PopularProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchStats() {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayISO = todayStart.toISOString();
+      setLoading(true);
+      const sinceISO = getPeriodStart(period);
 
-      // Fetch today's non-cancelled orders
       const { data: ordersData, error: ordersErr } = await supabase
         .from('orders')
         .select('id, total')
         .neq('status', 'cancelled')
-        .gte('created_at', todayISO);
+        .gte('created_at', sinceISO);
 
       if (ordersErr) {
         setLoading(false);
@@ -38,12 +52,11 @@ export function useDashboardStats(): DashboardStats {
       }
 
       const orders = ordersData ?? [];
-      setOrdersToday(orders.length);
-      setRevenueToday(
+      setOrdersCount(orders.length);
+      setRevenue(
         orders.reduce((sum, o) => sum + (typeof o.total === 'number' ? o.total : 0), 0),
       );
 
-      // Fetch today's order items with product names for popular products
       if (orders.length > 0) {
         const orderIds = orders.map((o) => o.id);
 
@@ -54,7 +67,6 @@ export function useDashboardStats(): DashboardStats {
           .neq('status', 'cancelled');
 
         if (!itemsErr) {
-          // Aggregate by product name
           const productMap = new Map<string, number>();
           for (const item of itemsData ?? []) {
             const product = Array.isArray(item.product) ? item.product[0] : item.product;
@@ -69,13 +81,15 @@ export function useDashboardStats(): DashboardStats {
 
           setPopularProducts(sorted);
         }
+      } else {
+        setPopularProducts([]);
       }
 
       setLoading(false);
     }
 
     fetchStats();
-  }, []);
+  }, [period]);
 
-  return { ordersToday, revenueToday, popularProducts, loading };
+  return { ordersCount, revenue, popularProducts, loading };
 }

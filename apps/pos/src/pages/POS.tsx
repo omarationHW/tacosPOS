@@ -3,25 +3,37 @@ import toast from 'react-hot-toast';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useOrders } from '@/hooks/useOrders';
+import { useTables } from '@/hooks/useTables';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
-import { OrderPanel, type CartItem } from '@/components/pos/OrderPanel';
+import { OrderPanel, type CartItem, type OrderType, type CartItemModifier } from '@/components/pos/OrderPanel';
+import { ModifierModal } from '@/components/pos/ModifierModal';
 import type { ProductWithRelations } from '@/hooks/useProducts';
+
+function makeCartKey(productId: string, modifiers: CartItemModifier[]): string {
+  const modIds = modifiers.map((m) => m.modifierId).sort().join(',');
+  return `${productId}|${modIds}`;
+}
 
 export function POS() {
   const { products, loading: productsLoading } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
   const { createOrder } = useOrders();
+  const { tables, loading: tablesLoading } = useTables();
   const { user } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [mesa, setMesa] = useState('');
+  const [orderType, setOrderType] = useState<OrderType>('dine_in');
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const loading = productsLoading || categoriesLoading;
+  // Modifier modal state
+  const [modifierProduct, setModifierProduct] = useState<ProductWithRelations | null>(null);
+
+  const loading = productsLoading || categoriesLoading || tablesLoading;
 
   const filteredProducts = useMemo(() => {
     const active = products.filter((p) => p.is_active);
@@ -30,35 +42,63 @@ export function POS() {
   }, [products, selectedCategory]);
 
   const addToCart = (product: ProductWithRelations) => {
+    // If product has modifier groups, show modal
+    const hasModifiers = product.modifier_groups && product.modifier_groups.length > 0;
+    if (hasModifiers) {
+      setModifierProduct(product);
+      return;
+    }
+
+    // No modifiers — add directly
+    addToCartWithModifiers(product, []);
+  };
+
+  const addToCartWithModifiers = (product: ProductWithRelations, modifiers: CartItemModifier[]) => {
+    const cartKey = makeCartKey(product.id, modifiers);
+
     setCart((prev) => {
-      const existing = prev.find((item) => item.productId === product.id);
+      const existing = prev.find((item) => item.cartKey === cartKey);
       if (existing) {
         return prev.map((item) =>
-          item.productId === product.id
+          item.cartKey === cartKey
             ? { ...item, quantity: item.quantity + 1 }
             : item,
         );
       }
       return [
         ...prev,
-        { productId: product.id, name: product.name, price: product.price, quantity: 1 },
+        {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          modifiers,
+          cartKey,
+        },
       ];
     });
   };
 
-  const increment = (productId: string) => {
+  const handleModifierConfirm = (modifiers: CartItemModifier[]) => {
+    if (modifierProduct) {
+      addToCartWithModifiers(modifierProduct, modifiers);
+      setModifierProduct(null);
+    }
+  };
+
+  const increment = (cartKey: string) => {
     setCart((prev) =>
       prev.map((item) =>
-        item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item,
+        item.cartKey === cartKey ? { ...item, quantity: item.quantity + 1 } : item,
       ),
     );
   };
 
-  const decrement = (productId: string) => {
+  const decrement = (cartKey: string) => {
     setCart((prev) =>
       prev
         .map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item,
+          item.cartKey === cartKey ? { ...item, quantity: item.quantity - 1 } : item,
         )
         .filter((item) => item.quantity > 0),
     );
@@ -66,7 +106,6 @@ export function POS() {
 
   const clearCart = () => {
     setCart([]);
-    setMesa('');
   };
 
   const handleSubmit = async () => {
@@ -75,11 +114,30 @@ export function POS() {
       return;
     }
 
+    if (orderType === 'dine_in' && !selectedTableId) {
+      toast.error('Selecciona una mesa para comer aqui');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const notes = mesa.trim() ? `Mesa ${mesa.trim()}` : undefined;
-      const result = await createOrder({ items: cart, createdBy: user.id, notes });
-      const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const selectedTable = tables.find((t) => t.id === selectedTableId);
+      const notes = orderType === 'takeout'
+        ? 'Para Llevar'
+        : selectedTable?.name ?? undefined;
+
+      const result = await createOrder({
+        items: cart,
+        createdBy: user.id,
+        tableId: selectedTableId,
+        orderType,
+        notes,
+      });
+
+      const total = cart.reduce((sum, item) => {
+        const modTotal = item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
+        return sum + (item.price + modTotal) * item.quantity;
+      }, 0);
 
       if (result.appended) {
         toast.success(
@@ -91,7 +149,6 @@ export function POS() {
         );
       }
       setCart([]);
-      setMesa('');
     } catch {
       toast.error('Error al registrar el pedido');
     } finally {
@@ -127,8 +184,11 @@ export function POS() {
       <div className="w-[280px] shrink-0 lg:w-[340px]">
         <OrderPanel
           items={cart}
-          mesa={mesa}
-          onMesaChange={setMesa}
+          orderType={orderType}
+          onOrderTypeChange={setOrderType}
+          selectedTableId={selectedTableId}
+          onTableSelect={setSelectedTableId}
+          tables={tables}
           onIncrement={increment}
           onDecrement={decrement}
           onClear={clearCart}
@@ -136,6 +196,15 @@ export function POS() {
           loading={submitting}
         />
       </div>
+
+      {/* Modifier Modal */}
+      {modifierProduct && (
+        <ModifierModal
+          product={modifierProduct}
+          onConfirm={handleModifierConfirm}
+          onClose={() => setModifierProduct(null)}
+        />
+      )}
     </div>
   );
 }

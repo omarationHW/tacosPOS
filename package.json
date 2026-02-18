@@ -10,5 +10,9 @@
     "dev": "npm run dev --workspace=apps/pos",
     "build": "npm run build --workspace=apps/pos",
     "preview": "npm run preview --workspace=apps/pos"
+  },
+  "dependencies": {
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7"
   }
 }
