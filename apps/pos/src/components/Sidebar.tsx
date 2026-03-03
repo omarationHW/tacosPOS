@@ -41,16 +41,17 @@ export function Sidebar() {
   return (
     <aside
       className={`flex h-full flex-col border-r border-gray-700 bg-gray-800 transition-all duration-300 ${
-        collapsed ? 'w-14' : 'w-14 lg:w-56'
+        collapsed ? 'w-14' : 'w-14 lg:w-60'
       }`}
     >
-      <div className={`flex items-center gap-2 border-b border-gray-700 px-2 py-4 ${
-        collapsed ? 'justify-center' : 'justify-center lg:justify-start lg:px-4'
+      <div className={`flex items-center border-b border-gray-700 ${
+        collapsed ? 'justify-center px-2 py-3' : 'justify-center px-2 py-3 lg:px-4 lg:py-5'
       }`}>
-        <span className="text-2xl">🌮</span>
-        {!collapsed && (
-          <span className="hidden text-base font-bold text-amber-500 lg:inline leading-tight">Taqueria La Andaluza</span>
-        )}
+        <img
+          src="/Logo - La Andaluza_V.svg"
+          alt="Taqueria La Andaluza"
+          className={collapsed ? 'h-9 w-auto' : 'h-9 w-auto lg:h-24'}
+        />
       </div>
 
       <nav className={`flex-1 space-y-1 p-2 ${!collapsed ? 'lg:p-3' : ''}`}>

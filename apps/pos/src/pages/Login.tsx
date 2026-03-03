@@ -42,9 +42,12 @@ export function Login() {
     <div className="flex h-screen items-center justify-center bg-gray-900 p-4">
       <div className="w-full max-w-sm rounded-xl border border-gray-700 bg-gray-800 p-8 shadow-xl">
         <div className="mb-8 text-center">
-          <span className="text-5xl">🌮</span>
-          <h1 className="mt-4 text-2xl font-bold text-amber-500">TacosPOS</h1>
-          <p className="mt-1 text-sm text-gray-400">Inicia sesión para continuar</p>
+          <img
+            src="/Logo - La Andaluza_V.svg"
+            alt="Taqueria La Andaluza"
+            className="mx-auto h-32 w-auto"
+          />
+          <p className="mt-4 text-sm text-gray-400">Inicia sesión para continuar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

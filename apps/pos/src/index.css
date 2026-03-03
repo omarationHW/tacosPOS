@@ -3,16 +3,16 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-amber-50: #fffbeb;
-  --color-amber-100: #fef3c7;
-  --color-amber-200: #fde68a;
-  --color-amber-300: #fcd34d;
-  --color-amber-400: #fbbf24;
-  --color-amber-500: #f59e0b;
-  --color-amber-600: #d97706;
-  --color-amber-700: #b45309;
-  --color-amber-800: #92400e;
-  --color-amber-900: #78350f;
+  --color-amber-50: #f9f6f0;
+  --color-amber-100: #f0e9d9;
+  --color-amber-200: #e2d4b5;
+  --color-amber-300: #d4bf91;
+  --color-amber-400: #c4ab82;
+  --color-amber-500: #b49a6e;
+  --color-amber-600: #a08658;
+  --color-amber-700: #8a7249;
+  --color-amber-800: #6e5b3a;
+  --color-amber-900: #52442c;
 }
 
 /* Scrollbar styling for dark theme */

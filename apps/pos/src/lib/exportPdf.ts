@@ -1,7 +1,10 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { LOGO_BASE64 } from './logoBase64';
 
 const BRAND = 'Taqueria La Andaluza';
+const BRAND_RGB: [number, number, number] = [196, 171, 130]; // #c4ab82
+const BRAND_DARK_RGB: [number, number, number] = [160, 134, 88]; // #a08658
 
 interface ExportPdfOptions {
   filename: string;
@@ -12,81 +15,133 @@ interface ExportPdfOptions {
   summary?: { label: string; value: string }[];
 }
 
-export function exportPdf({ filename, title, period, headers, rows, summary }: ExportPdfOptions) {
-  const doc = new jsPDF();
+function addHeader(doc: jsPDF, title: string, period?: string): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Header
-  doc.setFontSize(18);
+  // Logo
+  doc.addImage(LOGO_BASE64, 'PNG', 14, 10, 30, 30);
+
+  // Brand name + title (right of logo)
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(BRAND, 14, 20);
+  doc.setTextColor(50);
+  doc.text(BRAND, 50, 20);
 
-  doc.setFontSize(13);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(title, 14, 28);
+  doc.setTextColor(100);
+  doc.text(title, 50, 27);
 
   if (period) {
     doc.setFontSize(9);
-    doc.setTextColor(120);
-    doc.text(period, 14, 34);
-    doc.setTextColor(0);
+    doc.setTextColor(140);
+    doc.text(period, 50, 33);
   }
 
-  const startY = period ? 40 : 34;
+  // Brand color line under header
+  doc.setDrawColor(...BRAND_RGB);
+  doc.setLineWidth(0.8);
+  doc.line(14, 44, pageWidth - 14, 44);
 
-  // Summary cards (if provided)
-  let tableStartY = startY;
+  return 50;
+}
+
+function addFooter(doc: jsPDF) {
+  const pageCount = doc.getNumberOfPages();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Brand color line above footer
+    doc.setDrawColor(...BRAND_RGB);
+    doc.setLineWidth(0.4);
+    doc.line(14, pageHeight - 16, pageWidth - 14, pageHeight - 16);
+
+    // Footer text
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.text(
+      `${BRAND}`,
+      14,
+      pageHeight - 10,
+    );
+    doc.text(
+      `Generado: ${new Date().toLocaleString('es-MX')}  |  Pagina ${i}/${pageCount}`,
+      pageWidth - 14,
+      pageHeight - 10,
+      { align: 'right' },
+    );
+  }
+}
+
+export function exportPdf({ filename, title, period, headers, rows, summary }: ExportPdfOptions) {
+  const doc = new jsPDF();
+
+  let startY = addHeader(doc, title, period);
+
+  // Summary cards
   if (summary && summary.length > 0) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    const cardWidth = 56;
+    const cardHeight = 18;
+    const gap = 6;
+    const cols = 3;
+    const startX = 14;
+
     summary.forEach((item, i) => {
-      const x = 14 + (i % 3) * 62;
-      const y = tableStartY + Math.floor(i / 3) * 12;
-      doc.setTextColor(100);
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * (cardWidth + gap);
+      const y = startY + row * (cardHeight + 4);
+
+      // Card background
+      doc.setFillColor(248, 246, 242);
+      doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'F');
+
+      // Left accent bar
+      doc.setFillColor(...BRAND_RGB);
+      doc.rect(x, y + 2, 1.5, cardHeight - 4, 'F');
+
+      // Label
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(item.label, x, y);
-      doc.setTextColor(0);
+      doc.setTextColor(120);
+      doc.text(item.label, x + 5, y + 6);
+
+      // Value
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text(item.value, x, y + 5);
+      doc.setTextColor(50);
+      doc.text(item.value, x + 5, y + 14);
     });
-    tableStartY += Math.ceil(summary.length / 3) * 12 + 6;
+
+    startY += Math.ceil(summary.length / cols) * (cardHeight + 4) + 6;
   }
 
   // Table
   autoTable(doc, {
-    startY: tableStartY,
+    startY,
     head: [headers],
     body: rows.map((row) => row.map(String)),
     theme: 'striped',
     headStyles: {
-      fillColor: [217, 119, 6], // amber-600
+      fillColor: [...BRAND_DARK_RGB],
       textColor: 255,
       fontStyle: 'bold',
       fontSize: 9,
     },
     bodyStyles: {
       fontSize: 8,
+      textColor: [60, 60, 60],
     },
     alternateRowStyles: {
-      fillColor: [245, 245, 245],
+      fillColor: [248, 246, 242],
     },
     margin: { left: 14, right: 14 },
   });
 
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(7);
-    doc.setTextColor(150);
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.text(
-      `${BRAND} - Generado: ${new Date().toLocaleString('es-MX')} - Pagina ${i}/${pageCount}`,
-      14,
-      pageHeight - 10,
-    );
-  }
+  addFooter(doc);
 
   doc.save(`${filename}.pdf`);
 }
