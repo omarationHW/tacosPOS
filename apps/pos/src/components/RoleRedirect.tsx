@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 const roleHome: Record<string, string> = {
   admin: '/reportes',
   cashier: '/pos',
+  waiter: '/pos',
   kitchen: '/kitchen',
 };
 

@@ -22,10 +22,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: '/pos', label: 'Punto de Venta', icon: <ShoppingCart size={20} />, roles: ['admin', 'cashier'] },
-  { to: '/cuentas', label: 'Cuentas', icon: <Receipt size={20} />, roles: ['admin', 'cashier'] },
-  { to: '/kitchen', label: 'Cocina', icon: <ChefHat size={20} />, roles: ['admin', 'kitchen'] },
-  { to: '/caja', label: 'Caja', icon: <Wallet size={20} />, roles: ['admin', 'cashier'] },
+  { to: '/pos', label: 'Punto de Venta', icon: <ShoppingCart size={20} />, roles: ['admin', 'cashier', 'waiter'] },
+  { to: '/cuentas', label: 'Cuentas', icon: <Receipt size={20} />, roles: ['admin', 'cashier', 'waiter'] },
+  { to: '/kitchen', label: 'Cocina', icon: <ChefHat size={20} />, roles: ['admin', 'kitchen', 'cashier', 'waiter'] },
+  { to: '/caja', label: 'Caja', icon: <Wallet size={20} />, roles: ['admin', 'cashier', 'waiter'] },
   { to: '/reportes', label: 'Reportes', icon: <BarChart3 size={20} />, roles: ['admin'] },
   { to: '/admin/categories', label: 'Categorias', icon: <FolderOpen size={20} />, roles: ['admin'] },
   { to: '/admin/products', label: 'Productos', icon: <Package size={20} />, roles: ['admin'] },

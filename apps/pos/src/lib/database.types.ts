@@ -8,7 +8,7 @@ export interface Database {
           id: string;
           email: string;
           full_name: string;
-          role: 'admin' | 'cashier' | 'kitchen';
+          role: 'admin' | 'cashier' | 'waiter' | 'kitchen';
           pin_hash: string | null;
           avatar_url: string | null;
           is_active: boolean;
@@ -19,7 +19,7 @@ export interface Database {
           id: string;
           email: string;
           full_name?: string;
-          role?: 'admin' | 'cashier' | 'kitchen';
+          role?: 'admin' | 'cashier' | 'waiter' | 'kitchen';
           pin?: string | null;
           avatar_url?: string | null;
           is_active?: boolean;
@@ -30,7 +30,7 @@ export interface Database {
           id?: string;
           email?: string;
           full_name?: string;
-          role?: 'admin' | 'cashier' | 'kitchen';
+          role?: 'admin' | 'cashier' | 'waiter' | 'kitchen';
           pin?: string | null;
           avatar_url?: string | null;
           is_active?: boolean;
@@ -516,11 +516,11 @@ export interface Database {
       };
       get_user_role: {
         Args: Record<string, never>;
-        Returns: 'admin' | 'cashier' | 'kitchen';
+        Returns: 'admin' | 'cashier' | 'waiter' | 'kitchen';
       };
     };
     Enums: {
-      user_role: 'admin' | 'cashier' | 'kitchen';
+      user_role: 'admin' | 'cashier' | 'waiter' | 'kitchen';
       order_status: 'open' | 'in_progress' | 'completed' | 'cancelled';
       order_type: 'dine_in' | 'takeout';
       order_item_status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';

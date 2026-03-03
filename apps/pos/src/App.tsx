@@ -26,7 +26,7 @@ export function App() {
         <Route
           path="/pos"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'cashier']}>
+            <ProtectedRoute allowedRoles={['admin', 'cashier', 'waiter']}>
               <POS />
             </ProtectedRoute>
           }
@@ -34,7 +34,7 @@ export function App() {
         <Route
           path="/cuentas"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'cashier']}>
+            <ProtectedRoute allowedRoles={['admin', 'cashier', 'waiter']}>
               <Cuentas />
             </ProtectedRoute>
           }
@@ -42,7 +42,7 @@ export function App() {
         <Route
           path="/kitchen"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'kitchen']}>
+            <ProtectedRoute allowedRoles={['admin', 'kitchen', 'cashier', 'waiter']}>
               <Kitchen />
             </ProtectedRoute>
           }
@@ -50,7 +50,7 @@ export function App() {
         <Route
           path="/caja"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'cashier']}>
+            <ProtectedRoute allowedRoles={['admin', 'cashier', 'waiter']}>
               <CashRegisterPage />
             </ProtectedRoute>
           }
