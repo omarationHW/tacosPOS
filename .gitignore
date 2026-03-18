@@ -37,6 +37,13 @@ supabase/
 # PWA
 dev-dist/
 
+# Scripts locales
+scripts/
+
+# Archivos generados
+skills-lock.json
+PROGRESS.md
+
 # Misc
 *.tsbuildinfo
 .turbo/
