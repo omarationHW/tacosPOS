@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Receipt, Banknote, CreditCard, ArrowLeft, Percent, DollarSign } from 'lucide-react';
+import { Receipt, Banknote, CreditCard, ArrowLeft, Percent, DollarSign, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useOpenTabs, type OpenTab } from '@/hooks/useOpenTabs';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -17,10 +17,10 @@ export function Cuentas() {
   const [discountValue, setDiscountValue] = useState('');
   const [tipValue, setTipValue] = useState('');
 
-  const selected = tabs.find((t) => (t.tableId ?? t.orderIds[0]) === selectedKey) ?? null;
+  const selected = tabs.find((t) => (t.customerName ?? t.orderIds[0]) === selectedKey) ?? null;
 
   const selectTab = (tab: OpenTab) => {
-    setSelectedKey(tab.tableId ?? tab.orderIds[0]);
+    setSelectedKey(tab.customerName ?? tab.orderIds[0]);
     setDiscountMode('fixed');
     setDiscountValue('');
     setTipValue('');
@@ -35,15 +35,16 @@ export function Cuentas() {
     return Math.min(val, subtotal);
   };
 
-  const handlePay = async (tab: OpenTab, method: 'cash' | 'card') => {
+  const handlePay = async (tab: OpenTab, method: 'cash' | 'card' | 'transfer') => {
     setPaying(true);
     try {
       const discount = computeDiscount(tab.subtotal);
       const tip = parseFloat(tipValue) || 0;
       await closeTab(tab, method, { discount, tip });
       const finalTotal = tab.total - discount + tip;
+      const methodLabel = method === 'cash' ? 'Efectivo' : method === 'card' ? 'Tarjeta' : 'Transferencia';
       toast.success(
-        `${tab.mesa} cobrada — $${finalTotal.toFixed(2)} (${method === 'cash' ? 'Efectivo' : 'Tarjeta'})`,
+        `${tab.mesa} cobrada — $${finalTotal.toFixed(2)} (${methodLabel})`,
       );
       setSelectedKey(null);
       setDiscountValue('');
@@ -65,7 +66,7 @@ export function Cuentas() {
 
   return (
     <div className="-m-4 flex h-[calc(100vh)] overflow-hidden lg:-m-6">
-      {/* Left: Mesa list */}
+      {/* Left: Client list */}
       <div className={`flex flex-1 flex-col overflow-hidden border-r border-gray-700 p-4 lg:p-6
         ${selected ? 'hidden lg:flex' : 'flex'}`}
       >
@@ -83,12 +84,12 @@ export function Cuentas() {
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-gray-500">
             <Receipt size={48} strokeWidth={1.5} />
             <p>No hay cuentas abiertas</p>
-            <p className="text-sm">Las mesas con pedidos sin cobrar apareceran aqui</p>
+            <p className="text-sm">Los pedidos sin cobrar apareceran aqui</p>
           </div>
         ) : (
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
             {tabs.map((tab) => {
-              const tabKey = tab.tableId ?? tab.orderIds[0];
+              const tabKey = tab.customerName ?? tab.orderIds[0];
               return (
                 <button
                   key={tabKey}
@@ -131,7 +132,7 @@ export function Cuentas() {
         {!selected ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-gray-500">
             <ArrowLeft size={32} strokeWidth={1.5} />
-            <p className="text-sm">Selecciona una mesa para ver la cuenta</p>
+            <p className="text-sm">Selecciona un cliente para ver la cuenta</p>
           </div>
         ) : (
           <>
@@ -299,6 +300,16 @@ export function Cuentas() {
                   >
                     <CreditCard size={18} />
                     Tarjeta
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    loading={paying}
+                    onClick={() => handlePay(selected, 'transfer')}
+                    className="flex-1 gap-1.5"
+                  >
+                    <Smartphone size={18} />
+                    Transf.
                   </Button>
                 </div>
               </div>

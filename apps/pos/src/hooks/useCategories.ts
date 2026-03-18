@@ -36,6 +36,7 @@ export function useCategories() {
     color?: string | null;
     sort_order?: number;
     is_active?: boolean;
+    business_line_id: string;
   }) => {
     const { data, error: err } = await supabase
       .from('categories')

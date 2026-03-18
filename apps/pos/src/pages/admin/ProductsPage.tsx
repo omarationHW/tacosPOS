@@ -3,6 +3,8 @@ import { Package, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProducts, useModifierGroups, type ProductWithRelations } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
+import { useBusinessLine } from '@/contexts/BusinessLineContext';
+import { useLineFilter } from '@/components/BusinessLineToggle';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -19,21 +21,25 @@ interface ProductForm {
   category_id: string;
   is_active: boolean;
   sort_order: number;
+  business_line_id: string;
 }
-
-const emptyForm: ProductForm = {
-  name: '',
-  description: '',
-  price: '',
-  category_id: '',
-  is_active: true,
-  sort_order: 0,
-};
 
 export function ProductsPage() {
   const { products, loading, createProduct, updateProduct, deleteProduct } = useProducts();
   const { categories } = useCategories();
   const { groups: modifierGroups, createGroup: createModifierGroup } = useModifierGroups();
+  const { activeBusinessLine, availableBusinessLines } = useBusinessLine();
+  const resolvedLineId = useLineFilter();
+
+  const emptyForm: ProductForm = {
+    name: '',
+    description: '',
+    price: '',
+    category_id: '',
+    is_active: true,
+    sort_order: 0,
+    business_line_id: activeBusinessLine?.id ?? '',
+  };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProductWithRelations | null>(null);
@@ -55,19 +61,31 @@ export function ProductsPage() {
     { name: '', price_override: '0' },
   ]);
 
+  // Filter by selected line
+  const lineProducts = useMemo(() => {
+    if (!resolvedLineId) return products;
+    return products.filter((p) => p.business_line_id === resolvedLineId);
+  }, [products, resolvedLineId]);
+
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return lineProducts.filter((p) => {
       const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
       const matchCategory = !filterCategory || p.category_id === filterCategory;
       return matchSearch && matchCategory;
     });
-  }, [products, search, filterCategory]);
+  }, [lineProducts, search, filterCategory]);
 
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  // Categories for the selected line
+  const lineCategories = useMemo(() => {
+    if (!resolvedLineId) return categories;
+    return categories.filter((c) => c.business_line_id === resolvedLineId);
+  }, [categories, resolvedLineId]);
+
+  const categoryOptions = lineCategories.map((c) => ({ value: c.id, label: c.name }));
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ ...emptyForm, sort_order: products.length });
+    setForm({ ...emptyForm, sort_order: lineProducts.length, business_line_id: activeBusinessLine?.id ?? '' });
     setImageFile(null);
     setSelectedModifierGroups([]);
     setShowNewGroup(false);
@@ -83,6 +101,7 @@ export function ProductsPage() {
       category_id: product.category_id,
       is_active: product.is_active,
       sort_order: product.sort_order,
+      business_line_id: product.business_line_id,
     });
     setImageFile(null);
     setSelectedModifierGroups(
@@ -95,7 +114,11 @@ export function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.category_id) {
-      toast.error('Selecciona una categoría');
+      toast.error('Selecciona una categoria');
+      return;
+    }
+    if (!form.business_line_id) {
+      toast.error('Selecciona una linea de negocio');
       return;
     }
     setSaving(true);
@@ -107,6 +130,7 @@ export function ProductsPage() {
         category_id: form.category_id,
         is_active: form.is_active,
         sort_order: form.sort_order,
+        business_line_id: form.business_line_id,
       };
 
       if (editing) {
@@ -195,7 +219,7 @@ export function ProductsPage() {
           />
         </div>
         <Select
-          options={[{ value: '', label: 'Todas las categorías' }, ...categoryOptions]}
+          options={[{ value: '', label: 'Todas las categorias' }, ...categoryOptions]}
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
           className="w-48"
@@ -291,19 +315,42 @@ export function ProductsPage() {
             />
           </div>
 
+          {/* Business line selector */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-300">Linea de negocio</label>
+            <div className="flex gap-2">
+              {availableBusinessLines.map((bl) => (
+                <button
+                  key={bl.id}
+                  type="button"
+                  onClick={() => setForm({ ...form, business_line_id: bl.id, category_id: '' })}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                    form.business_line_id === bl.id
+                      ? 'border-amber-500 bg-amber-500/20 text-amber-500'
+                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  {bl.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Select
-            label="Categoría"
-            options={categoryOptions}
+            label="Categoria"
+            options={categories
+              .filter((c) => c.business_line_id === form.business_line_id)
+              .map((c) => ({ value: c.id, label: c.name }))}
             value={form.category_id}
             onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-            placeholder="Seleccionar categoría"
+            placeholder="Seleccionar categoria"
           />
 
           <Input
-            label="Descripción"
+            label="Descripcion"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Descripción opcional"
+            placeholder="Descripcion opcional"
           />
 
           <ImageUpload
@@ -443,7 +490,7 @@ export function ProductsPage() {
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleDelete}
         title="Eliminar producto"
-        message={`¿Estás seguro de eliminar "${deleteConfirm?.name}"? Esta acción no se puede deshacer.`}
+        message={`Estas seguro de eliminar "${deleteConfirm?.name}"? Esta accion no se puede deshacer.`}
         confirmLabel="Eliminar"
         loading={deleting}
       />

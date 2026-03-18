@@ -10,7 +10,7 @@ const roleHome: Record<string, string> = {
 };
 
 export function RoleRedirect() {
-  const { profile, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -18,6 +18,16 @@ export function RoleRedirect() {
         <LoadingSpinner size="lg" />
       </div>
     );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Check if business line is selected in sessionStorage
+  const storedLine = sessionStorage.getItem('activeBusinessLineId');
+  if (!storedLine) {
+    return <Navigate to="/select-line" replace />;
   }
 
   const target = roleHome[profile?.role ?? 'cashier'] ?? '/pos';

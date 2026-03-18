@@ -44,17 +44,18 @@ export function Kitchen() {
       {orders.length === 0 ? (
         <div className="rounded-xl border border-gray-700 bg-gray-800 p-12 text-center">
           <ChefHat className="mx-auto mb-3 text-gray-600" size={48} strokeWidth={1.5} />
-          <p className="text-gray-400">No hay órdenes activas</p>
+          <p className="text-gray-400">No hay ordenes activas</p>
           <p className="mt-1 text-sm text-gray-500">
-            Las nuevas órdenes aparecerán aquí automáticamente
+            Las nuevas ordenes apareceran aqui automaticamente
           </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {orders.map((order) => (
+          {orders.map((order, index) => (
             <KitchenOrderCard
               key={order.id}
               order={order}
+              orderNumber={index + 1}
               onAdvance={handleAdvance}
               busy={busyOrderId === order.id}
             />

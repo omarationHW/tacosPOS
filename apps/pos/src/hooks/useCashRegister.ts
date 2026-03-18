@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useBusinessLine } from '@/contexts/BusinessLineContext';
 
 export interface CashSession {
   id: string;
@@ -12,6 +13,7 @@ export interface CashSession {
   opened_at: string;
   closed_at: string | null;
   notes: string | null;
+  business_line_id: string;
   opener_name?: string;
   closer_name?: string;
 }
@@ -33,15 +35,21 @@ export function useCashRegister() {
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [history, setHistory] = useState<CashSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeBusinessLine, isAllLines } = useBusinessLine();
 
   const fetchActiveSession = useCallback(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('cash_register_sessions')
       .select('*, opener:profiles!cash_register_sessions_opened_by_fkey(full_name)')
       .is('closed_at', null)
       .order('opened_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+
+    if (activeBusinessLine && !isAllLines) {
+      query = query.eq('business_line_id', activeBusinessLine.id);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error || !data) {
       setActiveSession(null);
@@ -71,15 +79,21 @@ export function useCashRegister() {
 
     setMovements(normalizedMovs);
     setLoading(false);
-  }, []);
+  }, [activeBusinessLine, isAllLines]);
 
   const fetchHistory = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('cash_register_sessions')
       .select('*, opener:profiles!cash_register_sessions_opened_by_fkey(full_name), closer:profiles!cash_register_sessions_closed_by_fkey(full_name)')
       .not('closed_at', 'is', null)
       .order('closed_at', { ascending: false })
       .limit(20);
+
+    if (activeBusinessLine && !isAllLines) {
+      query = query.eq('business_line_id', activeBusinessLine.id);
+    }
+
+    const { data } = await query;
 
     const normalized = (data ?? []).map((s: any) => {
       const opener = Array.isArray(s.opener) ? s.opener[0] : s.opener;
@@ -92,7 +106,7 @@ export function useCashRegister() {
     }) as CashSession[];
 
     setHistory(normalized);
-  }, []);
+  }, [activeBusinessLine, isAllLines]);
 
   useEffect(() => {
     fetchActiveSession();
@@ -121,6 +135,8 @@ export function useCashRegister() {
   }, [fetchActiveSession, fetchHistory]);
 
   async function openSession(openingAmount: number) {
+    if (!activeBusinessLine) throw new Error('Selecciona una linea especifica para abrir caja');
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No autenticado');
 
@@ -129,6 +145,7 @@ export function useCashRegister() {
       .insert({
         opened_by: user.id,
         opening_amount: openingAmount,
+        business_line_id: activeBusinessLine.id,
       });
 
     if (error) throw error;

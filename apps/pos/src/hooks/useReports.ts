@@ -5,6 +5,9 @@ export interface DailySales {
   date: string;
   total: number;
   orderCount: number;
+  cash: number;
+  card: number;
+  transfer: number;
 }
 
 export interface ProductSales {
@@ -37,24 +40,33 @@ export interface CashCutSummary {
 }
 
 export function useReports() {
-  const getSalesByPeriod = useCallback(async (startDate: string, endDate: string): Promise<DailySales[]> => {
-    const { data, error } = await supabase
+  const getSalesByPeriod = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<DailySales[]> => {
+    let query = supabase
       .from('orders')
-      .select('id, total, created_at')
+      .select('id, total, payment_method, created_at')
       .neq('status', 'cancelled')
       .not('payment_method', 'is', null)
       .gte('created_at', startDate)
       .lte('created_at', endDate)
       .order('created_at', { ascending: true });
 
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data, error } = await query;
+
     if (error || !data) return [];
 
-    const dayMap = new Map<string, { total: number; orderCount: number }>();
+    const dayMap = new Map<string, { total: number; orderCount: number; cash: number; card: number; transfer: number }>();
     for (const order of data) {
       const day = order.created_at.slice(0, 10);
-      const existing = dayMap.get(day) ?? { total: 0, orderCount: 0 };
+      const existing = dayMap.get(day) ?? { total: 0, orderCount: 0, cash: 0, card: 0, transfer: 0 };
       existing.total += order.total;
       existing.orderCount += 1;
+      if (order.payment_method === 'cash') existing.cash += order.total;
+      else if (order.payment_method === 'card') existing.card += order.total;
+      else if (order.payment_method === 'transfer') existing.transfer += order.total;
       dayMap.set(day, existing);
     }
 
@@ -62,18 +74,26 @@ export function useReports() {
       date,
       total: Math.round(v.total * 100) / 100,
       orderCount: v.orderCount,
+      cash: Math.round(v.cash * 100) / 100,
+      card: Math.round(v.card * 100) / 100,
+      transfer: Math.round(v.transfer * 100) / 100,
     }));
   }, []);
 
-  const getTopProducts = useCallback(async (startDate: string, endDate: string): Promise<ProductSales[]> => {
-    // Get order IDs in range
-    const { data: orders } = await supabase
+  const getTopProducts = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<ProductSales[]> => {
+    let query = supabase
       .from('orders')
       .select('id')
       .neq('status', 'cancelled')
       .not('payment_method', 'is', null)
       .gte('created_at', startDate)
       .lte('created_at', endDate);
+
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data: orders } = await query;
 
     if (!orders || orders.length === 0) {
       return [];
@@ -105,8 +125,8 @@ export function useReports() {
       .slice(0, 20);
   }, []);
 
-  const getAverageTicket = useCallback(async (startDate: string, endDate: string): Promise<number> => {
-    const { data } = await supabase
+  const getAverageTicket = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<number> => {
+    let query = supabase
       .from('orders')
       .select('total')
       .neq('status', 'cancelled')
@@ -114,19 +134,31 @@ export function useReports() {
       .gte('created_at', startDate)
       .lte('created_at', endDate);
 
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data } = await query;
+
     if (!data || data.length === 0) return 0;
     const sum = data.reduce((s, o) => s + o.total, 0);
     return Math.round(sum / data.length * 100) / 100;
   }, []);
 
-  const getSalesByPaymentMethod = useCallback(async (startDate: string, endDate: string): Promise<PaymentMethodSales[]> => {
-    const { data } = await supabase
+  const getSalesByPaymentMethod = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<PaymentMethodSales[]> => {
+    let query = supabase
       .from('orders')
       .select('payment_method, total')
       .neq('status', 'cancelled')
       .not('payment_method', 'is', null)
       .gte('created_at', startDate)
       .lte('created_at', endDate);
+
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data } = await query;
 
     if (!data) return [];
 
@@ -140,19 +172,25 @@ export function useReports() {
     }
 
     return Array.from(methodMap.entries()).map(([method, v]) => ({
-      method: method === 'cash' ? 'Efectivo' : method === 'card' ? 'Tarjeta' : method,
+      method: method === 'cash' ? 'Efectivo' : method === 'card' ? 'Tarjeta' : method === 'transfer' ? 'Transferencia' : method,
       ...v,
     }));
   }, []);
 
-  const getSalesByHour = useCallback(async (startDate: string, endDate: string): Promise<HourlySales[]> => {
-    const { data } = await supabase
+  const getSalesByHour = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<HourlySales[]> => {
+    let query = supabase
       .from('orders')
       .select('total, created_at')
       .neq('status', 'cancelled')
       .not('payment_method', 'is', null)
       .gte('created_at', startDate)
       .lte('created_at', endDate);
+
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data } = await query;
 
     if (!data) return [];
 
@@ -170,13 +208,19 @@ export function useReports() {
       .sort((a, b) => a.hour - b.hour);
   }, []);
 
-  const getCashCutHistory = useCallback(async (): Promise<CashCutSummary[]> => {
-    const { data } = await supabase
+  const getCashCutHistory = useCallback(async (businessLineId?: string | null): Promise<CashCutSummary[]> => {
+    let query = supabase
       .from('cash_register_sessions')
       .select('*, opener:profiles!cash_register_sessions_opened_by_fkey(full_name)')
       .not('closed_at', 'is', null)
       .order('closed_at', { ascending: false })
       .limit(50);
+
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data } = await query;
 
     if (!data) return [];
 

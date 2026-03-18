@@ -33,5 +33,12 @@ export type TableStatus = (typeof TableStatus)[keyof typeof TableStatus];
 export const PaymentMethod = {
   CASH: 'cash',
   CARD: 'card',
+  TRANSFER: 'transfer',
 } as const;
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
+
+export const BusinessLine = {
+  HAMBURGUESAS: 'hamburguesas',
+  CARNITAS: 'carnitas',
+} as const;
+export type BusinessLine = (typeof BusinessLine)[keyof typeof BusinessLine];

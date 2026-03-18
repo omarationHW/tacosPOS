@@ -6,6 +6,8 @@ const TAX_RATE = 0.16;
 interface CreateOrderParams {
   items: CartItem[];
   createdBy: string;
+  customerName: string;
+  businessLineId: string;
   tableId?: string | null;
   orderType?: OrderType;
   notes?: string;
@@ -21,30 +23,29 @@ function getItemUnitPrice(item: CartItem): number {
 }
 
 export function useOrders() {
-  async function createOrder({ items, createdBy, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
+  async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items en el pedido');
 
-    // Check for existing open order for the same table (dine-in) or notes match
-    if (tableId) {
-      const { data: existing } = await supabase
-        .from('orders')
-        .select('id, subtotal, tax, total')
-        .eq('table_id', tableId)
-        .in('status', ['open', 'in_progress'])
-        .is('payment_method', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // Check for existing open order for the same customer + business line
+    const { data: existing } = await supabase
+      .from('orders')
+      .select('id, subtotal, tax, total')
+      .eq('customer_name', customerName)
+      .eq('business_line_id', businessLineId)
+      .in('status', ['open', 'in_progress'])
+      .is('payment_method', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (existing) {
-        return await appendToOrder(existing, items);
-      }
+    if (existing) {
+      return await appendToOrder(existing, items);
     }
 
-    return await insertNewOrder({ items, createdBy, tableId, orderType, notes });
+    return await insertNewOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes });
   }
 
-  async function insertNewOrder({ items, createdBy, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
+  async function insertNewOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
     const subtotal = items.reduce((sum, item) => sum + getItemUnitPrice(item) * item.quantity, 0);
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
@@ -54,6 +55,8 @@ export function useOrders() {
       .insert({
         created_by: createdBy,
         table_id: tableId || null,
+        customer_name: customerName,
+        business_line_id: businessLineId,
         order_type: orderType || 'dine_in',
         status: 'open',
         subtotal,
@@ -100,6 +103,7 @@ export function useOrders() {
       unit_price: getItemUnitPrice(item),
       subtotal: Math.round(getItemUnitPrice(item) * item.quantity * 100) / 100,
       status: 'pending' as const,
+      notes: item.notes?.trim() || null,
       sent_to_kitchen_at: new Date().toISOString(),
     }));
 

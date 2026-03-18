@@ -1,4 +1,5 @@
 import type { UserRole } from '../constants.js';
+import type { BusinessLineRecord } from './business-line.js';
 
 export interface Profile {
   id: string;
@@ -10,4 +11,5 @@ export interface Profile {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  business_lines?: BusinessLineRecord[];
 }

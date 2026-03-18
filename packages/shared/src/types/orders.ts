@@ -10,6 +10,8 @@ export interface Order {
   total: number;
   payment_method: PaymentMethod | null;
   notes: string | null;
+  customer_name: string | null;
+  business_line_id: string;
   created_at: string;
   updated_at: string;
   // Joined fields

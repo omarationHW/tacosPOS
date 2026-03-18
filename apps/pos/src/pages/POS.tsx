@@ -3,8 +3,8 @@ import toast from 'react-hot-toast';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useOrders } from '@/hooks/useOrders';
-import { useTables } from '@/hooks/useTables';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLineFilter } from '@/components/BusinessLineToggle';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
@@ -18,38 +18,46 @@ function makeCartKey(productId: string, modifiers: CartItemModifier[]): string {
 }
 
 export function POS() {
+  const resolvedLineId = useLineFilter();
   const { products, loading: productsLoading } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
   const { createOrder } = useOrders();
-  const { tables, loading: tablesLoading } = useTables();
   const { user } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderType, setOrderType] = useState<OrderType>('dine_in');
-  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Modifier modal state
   const [modifierProduct, setModifierProduct] = useState<ProductWithRelations | null>(null);
 
-  const loading = productsLoading || categoriesLoading || tablesLoading;
+  const loading = productsLoading || categoriesLoading;
+
+  // Filter by business line and active status
+  const filteredCategories = useMemo(() => {
+    if (!resolvedLineId) return categories;
+    return categories.filter((c) => c.business_line_id === resolvedLineId);
+  }, [categories, resolvedLineId]);
 
   const filteredProducts = useMemo(() => {
-    const active = products.filter((p) => p.is_active);
-    if (!selectedCategory) return active;
-    return active.filter((p) => p.category_id === selectedCategory);
-  }, [products, selectedCategory]);
+    let active = products.filter((p) => p.is_active);
+    if (resolvedLineId) {
+      active = active.filter((p) => p.business_line_id === resolvedLineId);
+    }
+    if (selectedCategory) {
+      active = active.filter((p) => p.category_id === selectedCategory);
+    }
+    return active;
+  }, [products, selectedCategory, resolvedLineId]);
 
   const addToCart = (product: ProductWithRelations) => {
-    // If product has modifier groups, show modal
     const hasModifiers = product.modifier_groups && product.modifier_groups.length > 0;
     if (hasModifiers) {
       setModifierProduct(product);
       return;
     }
-
-    // No modifiers — add directly
     addToCartWithModifiers(product, []);
   };
 
@@ -104,6 +112,14 @@ export function POS() {
     );
   };
 
+  const updateNotes = (cartKey: string, notes: string) => {
+    setCart((prev) =>
+      prev.map((item) =>
+        item.cartKey === cartKey ? { ...item, notes } : item,
+      ),
+    );
+  };
+
   const clearCart = () => {
     setCart([]);
   };
@@ -114,22 +130,29 @@ export function POS() {
       return;
     }
 
-    if (orderType === 'dine_in' && !selectedTableId) {
-      toast.error('Selecciona una mesa para comer aqui');
+    if (!customerName.trim()) {
+      toast.error('Ingresa el nombre del cliente');
+      return;
+    }
+
+    // Derive business line from active selection or from first product in cart
+    const orderLineId = resolvedLineId
+      ?? products.find((p) => p.id === cart[0]?.productId)?.business_line_id;
+
+    if (!orderLineId) {
+      toast.error('No se pudo determinar la linea de negocio');
       return;
     }
 
     setSubmitting(true);
     try {
-      const selectedTable = tables.find((t) => t.id === selectedTableId);
-      const notes = orderType === 'takeout'
-        ? 'Para Llevar'
-        : selectedTable?.name ?? undefined;
+      const notes = orderType === 'takeout' ? 'Para Llevar' : undefined;
 
       const result = await createOrder({
         items: cart,
         createdBy: user.id,
-        tableId: selectedTableId,
+        customerName: customerName.trim(),
+        businessLineId: orderLineId,
         orderType,
         notes,
       });
@@ -141,11 +164,11 @@ export function POS() {
 
       if (result.appended) {
         toast.success(
-          `Items agregados a ${notes || 'orden existente'} — +$${total.toFixed(2)}`,
+          `Items agregados a ${customerName} — +$${total.toFixed(2)}`,
         );
       } else {
         toast.success(
-          `Pedido registrado — ${notes || 'Sin mesa'} — Total: $${total.toFixed(2)}`,
+          `Pedido registrado — ${customerName} — Total: $${total.toFixed(2)}`,
         );
       }
       setCart([]);
@@ -170,7 +193,7 @@ export function POS() {
       <div className="flex flex-1 flex-col overflow-hidden p-4 lg:p-6">
         <div className="mb-4">
           <CategoryTabs
-            categories={categories}
+            categories={filteredCategories}
             selected={selectedCategory}
             onSelect={setSelectedCategory}
           />
@@ -186,11 +209,11 @@ export function POS() {
           items={cart}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
-          selectedTableId={selectedTableId}
-          onTableSelect={setSelectedTableId}
-          tables={tables}
+          customerName={customerName}
+          onCustomerNameChange={setCustomerName}
           onIncrement={increment}
           onDecrement={decrement}
+          onUpdateNotes={updateNotes}
           onClear={clearCart}
           onSubmit={handleSubmit}
           loading={submitting}

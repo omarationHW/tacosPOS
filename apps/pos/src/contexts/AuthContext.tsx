@@ -50,10 +50,26 @@ async function fetchProfileFromDB(userId: string): Promise<Profile | null> {
 
     if (retryErr) return null;
 
-    return newProfile as Profile | null;
+    return await attachBusinessLines(newProfile as Profile | null);
   }
 
-  return data as Profile | null;
+  return await attachBusinessLines(data as Profile | null);
+}
+
+async function attachBusinessLines(profile: Profile | null): Promise<Profile | null> {
+  if (!profile) return null;
+
+  const { data: links } = await supabase
+    .from('profile_business_lines')
+    .select('business_line_id, business_line:business_lines(*)')
+    .eq('profile_id', profile.id);
+
+  const businessLines = (links ?? []).map((link: any) => {
+    const bl = Array.isArray(link.business_line) ? link.business_line[0] : link.business_line;
+    return bl;
+  }).filter(Boolean);
+
+  return { ...profile, business_lines: businessLines };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -128,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    sessionStorage.removeItem('activeBusinessLineId');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };

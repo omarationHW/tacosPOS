@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useBusinessLine } from '@/contexts/BusinessLineContext';
 
 export interface KitchenOrderItem {
   id: string;
@@ -14,6 +15,7 @@ export interface KitchenOrder {
   id: string;
   status: 'open' | 'in_progress' | 'completed' | 'cancelled';
   notes: string | null;
+  customer_name: string | null;
   created_at: string;
   order_items: KitchenOrderItem[];
 }
@@ -57,15 +59,18 @@ export function useKitchenOrders() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const prevOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
+  const { activeBusinessLine } = useBusinessLine();
 
   const fetchOrders = useCallback(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('orders')
       .select(`
         id,
         status,
         notes,
+        customer_name,
         created_at,
+        business_line_id,
         order_items (
           id,
           quantity,
@@ -77,6 +82,12 @@ export function useKitchenOrders() {
       `)
       .in('status', ['open', 'in_progress'])
       .order('created_at', { ascending: true });
+
+    if (activeBusinessLine) {
+      query = query.eq('business_line_id', activeBusinessLine.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) return;
 
@@ -94,7 +105,7 @@ export function useKitchenOrders() {
       for (const id of currentIds) {
         if (!prevOrderIdsRef.current.has(id)) {
           playNewOrderSound();
-          break; // One sound is enough even if multiple new orders
+          break;
         }
       }
     }
@@ -103,7 +114,7 @@ export function useKitchenOrders() {
 
     setOrders(normalized);
     setLoading(false);
-  }, []);
+  }, [activeBusinessLine]);
 
   useEffect(() => {
     fetchOrders();

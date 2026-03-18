@@ -47,15 +47,18 @@ const phaseBorder: Record<OrderPhase, string> = {
 
 interface KitchenOrderCardProps {
   order: KitchenOrder;
+  orderNumber: number;
   onAdvance: (order: KitchenOrder) => void;
   busy?: boolean;
 }
 
-export function KitchenOrderCard({ order, onAdvance, busy }: KitchenOrderCardProps) {
-  const shortId = order.id.slice(0, 6).toUpperCase();
+export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: KitchenOrderCardProps) {
   const activeItems = order.order_items.filter((i) => i.status !== 'cancelled');
   const phase = getOrderPhase(order);
   const action = phase !== 'done' ? phaseAction[phase] : null;
+
+  // Display: customer_name if available, otherwise notes or short id
+  const displayName = order.customer_name || order.notes || null;
 
   return (
     <div className={`flex flex-col rounded-xl border bg-gray-800 ${phaseBorder[phase]}`}>
@@ -63,10 +66,10 @@ export function KitchenOrderCard({ order, onAdvance, busy }: KitchenOrderCardPro
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
           <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-sm font-bold text-amber-400">
-            #{shortId}
+            #{orderNumber}
           </span>
-          {order.notes && (
-            <span className="text-sm text-gray-400">{order.notes}</span>
+          {displayName && (
+            <span className="text-sm font-medium text-gray-200">{displayName}</span>
           )}
         </div>
         <span className="text-xs text-gray-500">{timeAgo(order.created_at)}</span>

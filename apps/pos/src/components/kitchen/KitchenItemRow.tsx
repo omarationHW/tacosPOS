@@ -16,16 +16,23 @@ export function KitchenItemRow({ item }: KitchenItemRowProps) {
   const config = statusConfig[item.status];
 
   return (
-    <div className="flex items-center justify-between gap-2 py-1.5">
-      <span className="text-sm text-gray-200">
-        <span className="font-semibold text-gray-100">{item.quantity}×</span>{' '}
-        {item.product?.name ?? 'Producto'}
-      </span>
-      <span
-        className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.color}`}
-      >
-        {config.label}
-      </span>
+    <div className="py-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-gray-200">
+          <span className="font-semibold text-gray-100">{item.quantity}×</span>{' '}
+          {item.product?.name ?? 'Producto'}
+        </span>
+        <span
+          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.color}`}
+        >
+          {config.label}
+        </span>
+      </div>
+      {item.notes && (
+        <p className="mt-0.5 text-xs font-medium text-amber-300/80">
+          → {item.notes}
+        </p>
+      )}
     </div>
   );
 }

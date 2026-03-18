@@ -38,6 +38,67 @@ export interface Database {
         };
         Relationships: [];
       };
+      business_lines: {
+        Row: {
+          id: string;
+          slug: 'hamburguesas' | 'carnitas';
+          name: string;
+          schedule: { days: string[]; start: string; end: string };
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: 'hamburguesas' | 'carnitas';
+          name: string;
+          schedule?: { days: string[]; start: string; end: string };
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          schedule?: { days: string[]; start: string; end: string };
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      profile_business_lines: {
+        Row: {
+          id: string;
+          profile_id: string;
+          business_line_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          business_line_id: string;
+          created_at?: string;
+        };
+        Update: {
+          profile_id?: string;
+          business_line_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'profile_business_lines_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'profile_business_lines_business_line_id_fkey';
+            columns: ['business_line_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_lines';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       categories: {
         Row: {
           id: string;
@@ -47,6 +108,7 @@ export interface Database {
           color: string | null;
           sort_order: number;
           is_active: boolean;
+          business_line_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -58,6 +120,7 @@ export interface Database {
           color?: string | null;
           sort_order?: number;
           is_active?: boolean;
+          business_line_id: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -68,6 +131,7 @@ export interface Database {
           color?: string | null;
           sort_order?: number;
           is_active?: boolean;
+          business_line_id?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -82,6 +146,7 @@ export interface Database {
           image_url: string | null;
           is_active: boolean;
           sort_order: number;
+          business_line_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -94,6 +159,7 @@ export interface Database {
           image_url?: string | null;
           is_active?: boolean;
           sort_order?: number;
+          business_line_id: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -105,6 +171,7 @@ export interface Database {
           image_url?: string | null;
           is_active?: boolean;
           sort_order?: number;
+          business_line_id?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -265,8 +332,10 @@ export interface Database {
           total: number;
           discount: number;
           tip: number;
-          payment_method: 'cash' | 'card' | null;
+          payment_method: 'cash' | 'card' | 'transfer' | null;
           notes: string | null;
+          customer_name: string | null;
+          business_line_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -281,8 +350,10 @@ export interface Database {
           total?: number;
           discount?: number;
           tip?: number;
-          payment_method?: 'cash' | 'card' | null;
+          payment_method?: 'cash' | 'card' | 'transfer' | null;
           notes?: string | null;
+          customer_name?: string | null;
+          business_line_id: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -295,8 +366,10 @@ export interface Database {
           total?: number;
           discount?: number;
           tip?: number;
-          payment_method?: 'cash' | 'card' | null;
+          payment_method?: 'cash' | 'card' | 'transfer' | null;
           notes?: string | null;
+          customer_name?: string | null;
+          business_line_id?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -419,6 +492,7 @@ export interface Database {
           opened_at: string;
           closed_at: string | null;
           notes: string | null;
+          business_line_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -433,6 +507,7 @@ export interface Database {
           opened_at?: string;
           closed_at?: string | null;
           notes?: string | null;
+          business_line_id: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -443,6 +518,7 @@ export interface Database {
           difference?: number | null;
           closed_at?: string | null;
           notes?: string | null;
+          business_line_id?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -503,6 +579,37 @@ export interface Database {
           },
         ];
       };
+      customers: {
+        Row: {
+          id: string;
+          name: string;
+          phone: string | null;
+          birthday: string | null;
+          address: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          phone?: string | null;
+          birthday?: string | null;
+          address?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          phone?: string | null;
+          birthday?: string | null;
+          address?: string | null;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -525,8 +632,9 @@ export interface Database {
       order_type: 'dine_in' | 'takeout';
       order_item_status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
       table_status: 'available' | 'occupied' | 'reserved';
-      payment_method: 'cash' | 'card';
+      payment_method: 'cash' | 'card' | 'transfer';
       movement_type: 'sale' | 'withdrawal' | 'deposit' | 'tip';
+      business_line_type: 'hamburguesas' | 'carnitas';
     };
   };
 }

@@ -1,6 +1,6 @@
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Minus, Plus, ShoppingCart, Trash2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import type { Table } from '@/hooks/useTables';
 
 export interface CartItemModifier {
   modifierId: string;
@@ -14,6 +14,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   modifiers: CartItemModifier[];
+  notes?: string;
   /** Unique key for cart deduplication (productId + sorted modifier ids) */
   cartKey: string;
 }
@@ -24,11 +25,11 @@ interface OrderPanelProps {
   items: CartItem[];
   orderType: OrderType;
   onOrderTypeChange: (type: OrderType) => void;
-  selectedTableId: string | null;
-  onTableSelect: (tableId: string | null) => void;
-  tables: Table[];
+  customerName: string;
+  onCustomerNameChange: (name: string) => void;
   onIncrement: (cartKey: string) => void;
   onDecrement: (cartKey: string) => void;
+  onUpdateNotes: (cartKey: string, notes: string) => void;
   onClear: () => void;
   onSubmit: () => void;
   loading?: boolean;
@@ -39,15 +40,105 @@ function getItemTotal(item: CartItem): number {
   return (item.price + modTotal) * item.quantity;
 }
 
+function CartItemRow({
+  item,
+  onIncrement,
+  onDecrement,
+  onUpdateNotes,
+}: {
+  item: CartItem;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  onUpdateNotes: (notes: string) => void;
+}) {
+  const [showNotes, setShowNotes] = useState(!!item.notes);
+  const itemTotal = getItemTotal(item);
+
+  return (
+    <div className="rounded-lg bg-gray-800 p-3">
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <span className="text-sm font-medium text-gray-100">{item.name}</span>
+        <span className="shrink-0 text-sm text-gray-400">
+          ${item.price.toFixed(2)}
+        </span>
+      </div>
+      {/* Modifiers */}
+      {item.modifiers.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1">
+          {item.modifiers.map((mod, i) => (
+            <span key={i} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
+              {mod.name}
+              {mod.priceOverride > 0 && ` +$${mod.priceOverride.toFixed(2)}`}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onDecrement}
+            aria-label={`Reducir ${item.name}`}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-gray-700
+              text-gray-300 transition-colors hover:bg-gray-600
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          >
+            <Minus size={16} />
+          </button>
+          <span className="w-6 text-center text-sm font-medium text-gray-100">
+            {item.quantity}
+          </span>
+          <button
+            onClick={onIncrement}
+            aria-label={`Agregar ${item.name}`}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-gray-700
+              text-gray-300 transition-colors hover:bg-gray-600
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          >
+            <Plus size={16} />
+          </button>
+          {/* Toggle notes */}
+          <button
+            onClick={() => setShowNotes(!showNotes)}
+            title="Agregar nota"
+            className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-md transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                item.notes
+                  ? 'bg-amber-600/20 text-amber-400'
+                  : 'bg-gray-700 text-gray-500 hover:bg-gray-600 hover:text-gray-300'
+              }`}
+          >
+            <MessageSquare size={14} />
+          </button>
+        </div>
+        <span className="text-sm font-semibold text-amber-400">
+          ${itemTotal.toFixed(2)}
+        </span>
+      </div>
+      {/* Notes input */}
+      {showNotes && (
+        <input
+          type="text"
+          value={item.notes ?? ''}
+          onChange={(e) => onUpdateNotes(e.target.value)}
+          placeholder="Ej: Sin cebolla, termino medio..."
+          className="mt-2 w-full rounded-md border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-xs
+            text-gray-200 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+          autoFocus
+        />
+      )}
+    </div>
+  );
+}
+
 export function OrderPanel({
   items,
   orderType,
   onOrderTypeChange,
-  selectedTableId,
-  onTableSelect,
-  tables,
+  customerName,
+  onCustomerNameChange,
   onIncrement,
   onDecrement,
+  onUpdateNotes,
   onClear,
   onSubmit,
   loading = false,
@@ -74,10 +165,7 @@ export function OrderPanel({
             Comer Aqui
           </button>
           <button
-            onClick={() => {
-              onOrderTypeChange('takeout');
-              onTableSelect(null);
-            }}
+            onClick={() => onOrderTypeChange('takeout')}
             className={`flex-1 cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-colors
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500
               ${orderType === 'takeout'
@@ -89,27 +177,20 @@ export function OrderPanel({
           </button>
         </div>
 
-        {/* Table selector (only for dine-in) */}
-        {orderType === 'dine_in' && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="mesa" className="text-sm text-gray-400">Mesa</label>
-            <select
-              id="mesa"
-              value={selectedTableId ?? ''}
-              onChange={(e) => onTableSelect(e.target.value || null)}
-              className="flex-1 rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm
-                text-gray-100 focus:border-amber-500 focus:outline-none
-                focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
-            >
-              <option value="">Seleccionar mesa...</option>
-              {tables.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.capacity} pers.)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Customer name input */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="customer-name" className="shrink-0 text-sm text-gray-400">Cliente</label>
+          <input
+            id="customer-name"
+            type="text"
+            value={customerName}
+            onChange={(e) => onCustomerNameChange(e.target.value)}
+            placeholder="Nombre del cliente..."
+            className="flex-1 rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm
+              text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none
+              focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
+          />
+        </div>
       </div>
 
       {/* Items list */}
@@ -121,58 +202,15 @@ export function OrderPanel({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {items.map((item) => {
-              const itemTotal = getItemTotal(item);
-              return (
-                <div key={item.cartKey} className="rounded-lg bg-gray-800 p-3">
-                  <div className="mb-1 flex items-start justify-between gap-2">
-                    <span className="text-sm font-medium text-gray-100">{item.name}</span>
-                    <span className="shrink-0 text-sm text-gray-400">
-                      ${item.price.toFixed(2)}
-                    </span>
-                  </div>
-                  {/* Modifiers */}
-                  {item.modifiers.length > 0 && (
-                    <div className="mb-1.5 flex flex-wrap gap-1">
-                      {item.modifiers.map((mod, i) => (
-                        <span key={i} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
-                          {mod.name}
-                          {mod.priceOverride > 0 && ` +$${mod.priceOverride.toFixed(2)}`}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => onDecrement(item.cartKey)}
-                        aria-label={`Reducir ${item.name}`}
-                        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-gray-700
-                          text-gray-300 transition-colors hover:bg-gray-600
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="w-6 text-center text-sm font-medium text-gray-100">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => onIncrement(item.cartKey)}
-                        aria-label={`Agregar ${item.name}`}
-                        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-gray-700
-                          text-gray-300 transition-colors hover:bg-gray-600
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-                    <span className="text-sm font-semibold text-amber-400">
-                      ${itemTotal.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+            {items.map((item) => (
+              <CartItemRow
+                key={item.cartKey}
+                item={item}
+                onIncrement={() => onIncrement(item.cartKey)}
+                onDecrement={() => onDecrement(item.cartKey)}
+                onUpdateNotes={(notes) => onUpdateNotes(item.cartKey, notes)}
+              />
+            ))}
           </div>
         )}
       </div>

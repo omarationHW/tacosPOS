@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { FolderOpen, Plus, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCategories } from '@/hooks/useCategories';
+import { useBusinessLine } from '@/contexts/BusinessLineContext';
+import { useLineFilter } from '@/components/BusinessLineToggle';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
@@ -27,26 +29,36 @@ interface CategoryForm {
   icon: string;
   color: string;
   sort_order: number;
+  business_line_id: string;
 }
-
-const emptyForm: CategoryForm = {
-  name: '',
-  description: '',
-  icon: 'utensils-crossed',
-  color: '#f59e0b',
-  sort_order: 0,
-};
 
 export function CategoriesPage() {
   const { categories, loading, createCategory, updateCategory, toggleActive } = useCategories();
+  const { activeBusinessLine, availableBusinessLines } = useBusinessLine();
+  const resolvedLineId = useLineFilter();
+
+  const emptyForm: CategoryForm = {
+    name: '',
+    description: '',
+    icon: 'utensils-crossed',
+    color: '#f59e0b',
+    sort_order: 0,
+    business_line_id: activeBusinessLine?.id ?? (availableBusinessLines[0]?.id ?? ''),
+  };
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryForm>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // Filter categories by selected line
+  const filteredCategories = resolvedLineId
+    ? categories.filter((c) => c.business_line_id === resolvedLineId)
+    : categories;
+
   const openCreate = () => {
     setEditing(null);
-    setForm({ ...emptyForm, sort_order: categories.length + 1 });
+    setForm({ ...emptyForm, sort_order: filteredCategories.length + 1, business_line_id: activeBusinessLine?.id ?? '' });
     setModalOpen(true);
   };
 
@@ -58,20 +70,25 @@ export function CategoriesPage() {
       icon: cat.icon ?? 'utensils-crossed',
       color: cat.color ?? '#f59e0b',
       sort_order: cat.sort_order,
+      business_line_id: cat.business_line_id,
     });
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.business_line_id) {
+      toast.error('Selecciona una linea de negocio');
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
         await updateCategory(editing.id, form);
-        toast.success('Categoría actualizada');
+        toast.success('Categoria actualizada');
       } else {
         await createCategory(form);
-        toast.success('Categoría creada');
+        toast.success('Categoria creada');
       }
       setModalOpen(false);
     } catch (err) {
@@ -84,7 +101,7 @@ export function CategoriesPage() {
   const handleToggle = async (cat: Category) => {
     try {
       await toggleActive(cat.id, !cat.is_active);
-      toast.success(cat.is_active ? 'Categoría desactivada' : 'Categoría activada');
+      toast.success(cat.is_active ? 'Categoria desactivada' : 'Categoria activada');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error');
     }
@@ -103,16 +120,16 @@ export function CategoriesPage() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FolderOpen className="text-amber-500" size={28} />
-          <h1 className="text-2xl font-bold text-gray-100">Categorías</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Categorias</h1>
         </div>
         <Button onClick={openCreate}>
           <Plus size={18} />
-          Nueva categoría
+          Nueva categoria
         </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((cat) => (
+        {filteredCategories.map((cat) => (
           <div
             key={cat.id}
             className="flex items-center gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4"
@@ -153,16 +170,16 @@ export function CategoriesPage() {
         ))}
       </div>
 
-      {categories.length === 0 && (
+      {filteredCategories.length === 0 && (
         <div className="rounded-xl border border-gray-700 bg-gray-800 p-8 text-center text-gray-500">
-          No hay categorías. Crea la primera.
+          No hay categorias. Crea la primera.
         </div>
       )}
 
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? 'Editar categoría' : 'Nueva categoría'}
+        title={editing ? 'Editar categoria' : 'Nueva categoria'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -173,10 +190,10 @@ export function CategoriesPage() {
             placeholder="Ej: Tacos"
           />
           <Input
-            label="Descripción"
+            label="Descripcion"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Descripción opcional"
+            placeholder="Descripcion opcional"
           />
           <Input
             label="Orden"
@@ -185,6 +202,27 @@ export function CategoriesPage() {
             onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
             min={0}
           />
+
+          {/* Business line selector */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-300">Linea de negocio</label>
+            <div className="flex gap-2">
+              {availableBusinessLines.map((bl) => (
+                <button
+                  key={bl.id}
+                  type="button"
+                  onClick={() => setForm({ ...form, business_line_id: bl.id })}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                    form.business_line_id === bl.id
+                      ? 'border-amber-500 bg-amber-500/20 text-amber-500'
+                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  {bl.name}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-300">Icono</label>

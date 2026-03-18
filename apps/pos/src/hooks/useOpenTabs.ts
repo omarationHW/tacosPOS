@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useBusinessLine } from '@/contexts/BusinessLineContext';
 
 export interface TabItem {
   productName: string;
@@ -9,9 +10,10 @@ export interface TabItem {
 }
 
 export interface OpenTab {
-  /** Display name: table name or "Para Llevar #XXXX" */
+  /** Display name: customer name or "Para Llevar #XXXX" */
   mesa: string;
   tableId: string | null;
+  customerName: string | null;
   orderType: 'dine_in' | 'takeout';
   orderIds: string[];
   items: TabItem[];
@@ -24,20 +26,22 @@ export interface OpenTab {
 export function useOpenTabs() {
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeBusinessLine } = useBusinessLine();
 
   const fetchTabs = useCallback(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('orders')
       .select(`
         id,
         table_id,
+        customer_name,
         order_type,
         notes,
         subtotal,
         tax,
         total,
         created_at,
-        table:tables ( name ),
+        business_line_id,
         order_items (
           quantity,
           unit_price,
@@ -50,6 +54,12 @@ export function useOpenTabs() {
       .neq('status', 'cancelled')
       .order('created_at', { ascending: true });
 
+    if (activeBusinessLine) {
+      query = query.eq('business_line_id', activeBusinessLine.id);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
       setLoading(false);
       return;
@@ -57,39 +67,30 @@ export function useOpenTabs() {
 
     const orders = (data ?? []) as any[];
 
-    // Group by table_id for dine-in, or individual orders for takeout
-    const tabMap = new Map<string, {
-      tableId: string | null;
-      orderType: 'dine_in' | 'takeout';
-      mesa: string;
-      orderIds: string[];
-      items: TabItem[];
-      subtotal: number;
-      tax: number;
-      total: number;
-      oldestOrder: string;
-    }>();
+    // Group by customer_name for dine-in, or individual orders for takeout
+    const tabMap = new Map<string, OpenTab>();
 
     for (const order of orders) {
-      const orderType = (order as any).order_type ?? 'dine_in';
-      const tableObj = Array.isArray(order.table) ? order.table[0] : order.table;
-      const tableName = (tableObj as any)?.name ?? null;
+      const orderType = order.order_type ?? 'dine_in';
+      const customerName = order.customer_name as string | null;
 
-      // Use table_id as grouping key for dine-in, order id for takeout
       let key: string;
       let mesa: string;
 
-      if (orderType === 'takeout' || !order.table_id) {
+      if (orderType === 'takeout' || !customerName) {
         key = `takeout-${order.id}`;
         const shortId = order.id.slice(0, 6).toUpperCase();
-        mesa = order.notes || `Para Llevar #${shortId}`;
+        mesa = customerName
+          ? `${customerName} (Para Llevar)`
+          : (order.notes || `Para Llevar #${shortId}`);
       } else {
-        key = order.table_id;
-        mesa = tableName || order.notes || `Mesa`;
+        key = `customer-${customerName.toLowerCase()}`;
+        mesa = customerName;
       }
 
       const existing = tabMap.get(key) ?? {
         tableId: order.table_id as string | null,
+        customerName,
         orderType: orderType as 'dine_in' | 'takeout',
         mesa,
         orderIds: [] as string[],
@@ -130,7 +131,7 @@ export function useOpenTabs() {
     const result: OpenTab[] = Array.from(tabMap.values());
     setTabs(result);
     setLoading(false);
-  }, []);
+  }, [activeBusinessLine]);
 
   useEffect(() => {
     fetchTabs();
@@ -156,7 +157,7 @@ export function useOpenTabs() {
 
   async function closeTab(
     tab: OpenTab,
-    paymentMethod: 'cash' | 'card',
+    paymentMethod: 'cash' | 'card' | 'transfer',
     options?: { discount?: number; tip?: number },
   ) {
     const discount = options?.discount ?? 0;
@@ -174,7 +175,7 @@ export function useOpenTabs() {
 
     if (error) throw error;
 
-    // If dine-in, set table back to available
+    // If dine-in with table, set table back to available
     if (tab.tableId) {
       await supabase
         .from('tables')

@@ -3,3 +3,4 @@ export type { Category, Product, ModifierGroup, ProductModifierGroup, Modifier }
 export type { Order, OrderItem, OrderItemModifier } from './orders.js';
 export type { Table } from './tables.js';
 export type { CashRegisterSession, CashRegisterMovement } from './cash-register.js';
+export type { BusinessLineRecord } from './business-line.js';
