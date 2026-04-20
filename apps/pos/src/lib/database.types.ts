@@ -745,6 +745,10 @@ export type Database = {
     Functions: {
       _pin_to_password: { Args: { pin: string }; Returns: string }
       admin_reset_pin: { Args: { target_profile_id: string }; Returns: string }
+      admin_rotate_password: {
+        Args: { target_profile_id: string }
+        Returns: undefined
+      }
       change_own_pin: {
         Args: { new_pin: string; old_pin: string }
         Returns: undefined

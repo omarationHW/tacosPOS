@@ -59,12 +59,6 @@ const emptyForm: StaffForm = {
   lines: [],
 };
 
-const PIN_PASSWORD_PREFIX = 'la-andaluza-pin-';
-
-function generatePin(): string {
-  return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-}
-
 export function StaffPage() {
   const { availableBusinessLines } = useBusinessLine();
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -178,44 +172,22 @@ export function StaffPage() {
           return;
         }
 
-        const newPin = generatePin();
-        const { data: authData, error: authErr } = await supabase.auth.signUp({
-          email: form.email.trim(),
-          password: PIN_PASSWORD_PREFIX + newPin,
-          options: { data: { full_name: form.full_name } },
-        });
-        if (authErr) throw authErr;
-        if (!authData.user) throw new Error('No se pudo crear el usuario');
-
-        const newUserId = authData.user.id;
-        await new Promise((r) => setTimeout(r, 500));
-
-        const { error: profileErr } = await supabase
-          .from('profiles')
-          .upsert({
-            id: newUserId,
+        const { data, error: fnErr } = await supabase.functions.invoke('admin-create-staff', {
+          body: {
             email: form.email.trim(),
             full_name: form.full_name,
-            role: form.role as 'admin' | 'cashier' | 'waiter' | 'kitchen',
-            pin_hash: 'set',
-          }, { onConflict: 'id' });
-        if (profileErr) throw profileErr;
-
-        if (form.lines.length > 0) {
-          const links = form.lines.map((blId) => ({ profile_id: newUserId, business_line_id: blId }));
-          const { error: linkErr } = await supabase.from('profile_business_lines').insert(links);
-          if (linkErr) throw linkErr;
-        }
-
-        await supabase.from('pin_initial_seeds').insert({
-          profile_id: newUserId,
-          email: form.email.trim(),
-          pin: newPin,
+            role: form.role,
+            line_ids: form.lines,
+          },
         });
+        if (fnErr) throw fnErr;
+        if (!data?.pin || !data?.profile_id) {
+          throw new Error(data?.error ?? 'No se pudo crear el usuario');
+        }
 
         setPinReveal({
           member: {
-            id: newUserId,
+            id: data.profile_id as string,
             email: form.email.trim(),
             full_name: form.full_name,
             role: form.role,
@@ -223,7 +195,7 @@ export function StaffPage() {
             business_lines: [],
             has_initial_pin: true,
           },
-          pin: newPin,
+          pin: data.pin as string,
           label: 'PIN inicial',
         });
 
@@ -240,13 +212,30 @@ export function StaffPage() {
   };
 
   const handleToggleActive = async (member: StaffMember) => {
+    const willDeactivate = member.is_active;
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ is_active: !member.is_active })
         .eq('id', member.id);
       if (error) throw error;
-      toast.success(member.is_active ? `${member.full_name} desactivado` : `${member.full_name} activado`);
+
+      // On deactivation: rotate auth password to invalidate any live session
+      // and clear the PIN. Re-activation keeps the existing PIN intact since
+      // admins may want to reuse a prior credential.
+      if (willDeactivate) {
+        const { error: rotateErr } = await supabase.rpc('admin_rotate_password', {
+          target_profile_id: member.id,
+        });
+        if (rotateErr) {
+          toast.error(`Usuario desactivado pero la sesión podría seguir viva: ${rotateErr.message}`);
+        } else {
+          toast.success(`${member.full_name || member.email} desactivado · sesión y PIN invalidados`);
+        }
+      } else {
+        toast.success(`${member.full_name || member.email} activado · genera un nuevo PIN para que pueda ingresar`);
+      }
+
       await fetchStaff();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error');

@@ -10,7 +10,6 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 type LoginProfile = {
   id: string;
-  email: string;
   full_name: string;
   role: 'admin' | 'cashier' | 'waiter' | 'kitchen';
   avatar_url: string | null;
@@ -23,8 +22,8 @@ const ROLE_LABEL: Record<LoginProfile['role'], string> = {
   kitchen: 'Cocina',
 };
 
-function initials(fullName: string, email: string) {
-  const source = fullName.trim() || email;
+function initials(fullName: string) {
+  const source = fullName.trim() || '??';
   const parts = source.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return source.slice(0, 2).toUpperCase();
@@ -63,8 +62,8 @@ export function Login() {
     if (!selected) return;
     setSubmitting(true);
     try {
-      await signInWithPin(selected.email, value);
-      toast.success(`Bienvenido, ${selected.full_name || selected.email}`);
+      await signInWithPin(selected.id, value);
+      toast.success(`Bienvenido, ${selected.full_name || 'usuario'}`);
     } catch {
       setPin('');
       setErrorSignal((n) => n + 1);
@@ -149,12 +148,12 @@ export function Login() {
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          initials(p.full_name, p.email)
+                          initials(p.full_name)
                         )}
                       </span>
                       <div className="text-center">
                         <p className="text-sm font-semibold text-[color:var(--color-fg)] line-clamp-1">
-                          {p.full_name || p.email.split('@')[0]}
+                          {p.full_name || 'Sin nombre'}
                         </p>
                         <p className="mt-0.5 text-[11px] uppercase tracking-wider text-[color:var(--color-fg-subtle)]">
                           {ROLE_LABEL[p.role]}
@@ -187,11 +186,11 @@ export function Login() {
                   {selected.avatar_url ? (
                     <img src={selected.avatar_url} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    initials(selected.full_name, selected.email)
+                    initials(selected.full_name)
                   )}
                 </span>
                 <h2 className="mt-1 font-display text-2xl font-semibold text-[color:var(--color-fg)]">
-                  {selected.full_name || selected.email.split('@')[0]}
+                  {selected.full_name || 'Sin nombre'}
                 </h2>
                 <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
                   Ingresa tu PIN

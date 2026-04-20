@@ -12,16 +12,10 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
-  signInWithPin: (email: string, pin: string) => Promise<void>;
+  signInWithPin: (profileId: string, pin: string) => Promise<void>;
   changePin: (oldPin: string, newPin: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-}
-
-const PIN_PASSWORD_PREFIX = 'la-andaluza-pin-';
-
-function pinToPassword(pin: string) {
-  return `${PIN_PASSWORD_PREFIX}${pin}`;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -151,15 +145,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // onAuthStateChange will handle setting user + profile
   };
 
-  const signInWithPin = async (email: string, pin: string) => {
+  const signInWithPin = async (profileId: string, pin: string) => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: pinToPassword(pin),
-    });
-    if (error) {
+    try {
+      const { data, error } = await supabase.functions.invoke('pin-login', {
+        body: { profile_id: profileId, pin },
+      });
+      if (error) {
+        setLoading(false);
+        // supabase.functions.invoke wraps non-2xx as FunctionsHttpError; surface
+        // the function's error body when present so the caller can show it.
+        throw new Error((error as { message?: string }).message ?? 'PIN incorrecto');
+      }
+      if (!data?.access_token || !data?.refresh_token) {
+        setLoading(false);
+        throw new Error(data?.error ?? 'PIN incorrecto');
+      }
+      const { error: setErr } = await supabase.auth.setSession({
+        access_token: data.access_token as string,
+        refresh_token: data.refresh_token as string,
+      });
+      if (setErr) {
+        setLoading(false);
+        throw setErr;
+      }
+      // onAuthStateChange picks up the new session and loads the profile.
+    } catch (err) {
       setLoading(false);
-      throw error;
+      throw err;
     }
   };
 
