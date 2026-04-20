@@ -2,6 +2,15 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from './logoBase64';
 
+// Extend jsPDF type to include autotable
+declare module 'jspdf' {
+  interface jsPDF {
+    lastAutoTable?: {
+      finalY: number;
+    };
+  }
+}
+
 const BRAND = 'Taqueria La Andaluza';
 const BRAND_RGB: [number, number, number] = [196, 171, 130]; // #c4ab82
 const BRAND_DARK_RGB: [number, number, number] = [160, 134, 88]; // #a08658
@@ -47,7 +56,7 @@ function addHeader(doc: jsPDF, title: string, period?: string): number {
 }
 
 function addFooter(doc: jsPDF) {
-  const pageCount = doc.getNumberOfPages();
+  const pageCount = (doc as any).getNumberOfPages();
   const pageWidth = doc.internal.pageSize.getWidth();
 
   for (let i = 1; i <= pageCount; i++) {
