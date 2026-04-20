@@ -10,9 +10,16 @@ interface PinPadProps {
   /** Shows a shake animation + resets value when this changes to true */
   errorSignal?: number;
   disabled?: boolean;
+  /** Visual density — "sm" fits in tighter layouts (e.g. tablet landscape login). */
+  size?: 'sm' | 'md';
 }
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
+
+const SIZE = {
+  sm: { key: 56, gap: 'gap-3', stack: 'gap-6', dot: 'h-4 w-4', dotGap: 'gap-4' },
+  md: { key: 72, gap: 'gap-4', stack: 'gap-8', dot: 'h-5 w-5', dotGap: 'gap-5' },
+} as const;
 
 export function PinPad({
   length = 4,
@@ -21,8 +28,10 @@ export function PinPad({
   onComplete,
   errorSignal = 0,
   disabled = false,
+  size = 'md',
 }: PinPadProps) {
   const [shaking, setShaking] = useState(false);
+  const s = SIZE[size];
 
   useEffect(() => {
     if (errorSignal === 0) return;
@@ -59,17 +68,17 @@ export function PinPad({
   const dots = useMemo(() => Array.from({ length }, (_, i) => i < value.length), [value, length]);
 
   return (
-    <div className="flex flex-col items-center gap-10">
+    <div className={`flex flex-col items-center ${s.stack}`}>
       <motion.div
         animate={shaking ? { x: [0, -12, 12, -10, 10, -6, 6, 0] } : { x: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex items-center gap-5"
+        className={`flex items-center ${s.dotGap}`}
         aria-label={`PIN de ${length} dígitos`}
       >
         {dots.map((filled, i) => (
           <motion.span
             key={i}
-            className="relative inline-flex h-5 w-5 items-center justify-center rounded-full border-2"
+            className={`relative inline-flex ${s.dot} items-center justify-center rounded-full border-2`}
             animate={{
               borderColor: shaking
                 ? 'var(--color-danger)'
@@ -88,38 +97,41 @@ export function PinPad({
         ))}
       </motion.div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className={`grid grid-cols-3 ${s.gap}`}>
         {KEYS.map((k) => (
-          <KeypadButton key={k} onPress={() => press(k)} disabled={disabled}>
+          <KeypadButton key={k} sizePx={s.key} onPress={() => press(k)} disabled={disabled}>
             {k}
           </KeypadButton>
         ))}
-        <div aria-hidden className="h-[76px] w-[76px]" />
-        <KeypadButton onPress={() => press('0')} disabled={disabled}>
+        <div aria-hidden style={{ height: s.key, width: s.key }} />
+        <KeypadButton sizePx={s.key} onPress={() => press('0')} disabled={disabled}>
           0
         </KeypadButton>
         <KeypadButton
+          sizePx={s.key}
           onPress={erase}
           disabled={disabled || value.length === 0}
           variant="icon"
           ariaLabel="Borrar último dígito"
         >
-          <Delete size={24} />
+          <Delete size={size === 'sm' ? 20 : 24} />
         </KeypadButton>
       </div>
 
-      <AnimatePresence>
-        {shaking && (
-          <motion.p
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="text-sm font-medium text-[color:var(--color-danger)]"
-          >
-            PIN incorrecto
-          </motion.p>
-        )}
-      </AnimatePresence>
+      <div className="h-5">
+        <AnimatePresence>
+          {shaking && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-sm font-medium text-[color:var(--color-danger)]"
+            >
+              PIN incorrecto
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -130,12 +142,14 @@ function KeypadButton({
   disabled,
   variant = 'digit',
   ariaLabel,
+  sizePx,
 }: {
   children: React.ReactNode;
   onPress: () => void;
   disabled?: boolean;
   variant?: 'digit' | 'icon';
   ariaLabel?: string;
+  sizePx: number;
 }) {
   return (
     <motion.button
@@ -144,7 +158,8 @@ function KeypadButton({
       aria-label={ariaLabel}
       whileTap={{ scale: 0.92 }}
       transition={{ type: 'spring', stiffness: 600, damping: 30 }}
-      className={`flex h-[76px] w-[76px] cursor-pointer select-none items-center justify-center rounded-full border text-2xl font-medium transition-colors
+      style={{ height: sizePx, width: sizePx }}
+      className={`flex cursor-pointer select-none items-center justify-center rounded-full border text-2xl font-medium transition-colors
         disabled:cursor-not-allowed disabled:opacity-40
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
         ${variant === 'digit'

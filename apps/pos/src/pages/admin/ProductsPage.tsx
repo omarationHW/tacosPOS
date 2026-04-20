@@ -191,7 +191,7 @@ export function ProductsPage() {
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Package className="text-[color:var(--color-accent)]" size={28} />
-          <h1 className="font-display text-3xl font-semibold text-[color:var(--color-fg)]">Productos</h1>
+          <h1 className="font-display text-2xl font-semibold text-[color:var(--color-fg)]">Productos</h1>
           <span className="rounded-full bg-[color:var(--color-accent-soft)] px-3 py-0.5 text-sm font-semibold text-[color:var(--color-accent)]">
             {filteredProducts.length}
           </span>

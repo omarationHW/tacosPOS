@@ -34,7 +34,7 @@ export function Kitchen() {
     <div>
       <div className="mb-6 flex items-center gap-3">
         <ChefHat className="text-[color:var(--color-accent)]" size={32} />
-        <h1 className="font-display text-3xl font-semibold text-[color:var(--color-fg)]">Cocina</h1>
+        <h1 className="font-display text-2xl font-semibold text-[color:var(--color-fg)]">Cocina</h1>
         {orders.length > 0 && (
           <span className="rounded-full bg-[color:var(--color-accent-soft)] px-3 py-0.5 text-sm font-semibold text-[color:var(--color-accent)]">
             {orders.length} activa{orders.length !== 1 && 's'}

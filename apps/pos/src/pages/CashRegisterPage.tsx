@@ -122,7 +122,7 @@ export function CashRegisterPage() {
     <div>
       <div className="mb-6 flex items-center gap-3">
         <Wallet className="text-[color:var(--color-accent)]" size={32} />
-        <h1 className="font-display text-3xl font-semibold text-[color:var(--color-fg)]">Caja</h1>
+        <h1 className="font-display text-2xl font-semibold text-[color:var(--color-fg)]">Caja</h1>
         {activeSession && (
           <span className="rounded-full bg-emerald-500/15 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
             Turno abierto

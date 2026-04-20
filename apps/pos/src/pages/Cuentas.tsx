@@ -85,7 +85,7 @@ export function Cuentas() {
       >
         <div className="mb-5 flex items-center gap-3">
           <Receipt className="text-[color:var(--color-accent)]" size={28} />
-          <h1 className="font-display text-3xl font-semibold text-[color:var(--color-fg)]">Cuentas</h1>
+          <h1 className="font-display text-2xl font-semibold text-[color:var(--color-fg)]">Cuentas</h1>
           {tabs.length > 0 && (
             <span className="rounded-full bg-[color:var(--color-accent-soft)] px-3 py-0.5 text-sm font-semibold text-[color:var(--color-accent)]">
               {tabs.length}
