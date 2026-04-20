@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AppLayout } from '@/components/AppLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { RoleRedirect } from '@/components/RoleRedirect';
@@ -149,6 +150,7 @@ export function App() {
 
         <Route path="*" element={<RoleRedirect />} />
       </Routes>
+      <SpeedInsights />
     </Suspense>
   );
 }
