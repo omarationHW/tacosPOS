@@ -86,14 +86,14 @@ export function ProfileSettingsModal({ open, onOpenChange }: ProfileSettingsModa
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 10 }}
             transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-            className="fixed left-1/2 top-1/2 z-50 flex w-full max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-6 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 shadow-2xl"
+            className="fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-5 shadow-2xl"
           >
             <div className="flex items-start justify-between">
               <div>
-                <Dialog.Title className="font-display text-xl font-semibold text-[color:var(--color-fg)]">
+                <Dialog.Title className="font-display text-lg font-semibold text-[color:var(--color-fg)]">
                   Cambiar PIN
                 </Dialog.Title>
-                <Dialog.Description className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
+                <Dialog.Description className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
                   {profile?.full_name || profile?.email}
                 </Dialog.Description>
               </div>
@@ -101,7 +101,7 @@ export function ProfileSettingsModal({ open, onOpenChange }: ProfileSettingsModa
                 className="cursor-pointer rounded-lg p-1 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-fg)]
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
               >
-                <X size={20} />
+                <X size={18} />
               </Dialog.Close>
             </div>
 
@@ -112,15 +112,16 @@ export function ProfileSettingsModal({ open, onOpenChange }: ProfileSettingsModa
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.2 }}
-                className="flex flex-col items-center gap-4"
+                className="flex flex-col items-center gap-3"
               >
-                <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
                   {step === 'current' && 'PIN actual'}
                   {step === 'new' && 'Nuevo PIN'}
                   {step === 'confirm' && 'Confirmar PIN'}
                 </p>
                 {step === 'current' && (
                   <PinPad
+                    size="sm"
                     value={currentPin}
                     onChange={setCurrentPin}
                     onComplete={advanceFromCurrent}
@@ -130,6 +131,7 @@ export function ProfileSettingsModal({ open, onOpenChange }: ProfileSettingsModa
                 )}
                 {step === 'new' && (
                   <PinPad
+                    size="sm"
                     value={newPin}
                     onChange={setNewPin}
                     onComplete={advanceFromNew}
@@ -138,6 +140,7 @@ export function ProfileSettingsModal({ open, onOpenChange }: ProfileSettingsModa
                 )}
                 {step === 'confirm' && (
                   <PinPad
+                    size="sm"
                     value={confirmPin}
                     onChange={setConfirmPin}
                     onComplete={handleConfirm}

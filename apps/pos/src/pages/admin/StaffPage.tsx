@@ -520,7 +520,7 @@ function PinRevealDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 10 }}
             transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-            className="fixed left-1/2 top-1/2 z-50 flex w-full max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 shadow-2xl"
+            className="fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-5 shadow-2xl"
           >
             {state && (
               <>
@@ -533,14 +533,14 @@ function PinRevealDialog({
                   </Dialog.Description>
                 </div>
 
-                <div className="flex items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] py-8">
+                <div className="flex items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] py-5">
                   <AnimatePresence mode="wait">
                     <motion.span
                       key={state.pin}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
-                      className="tabular font-display text-6xl font-bold tracking-[0.3em] text-[color:var(--color-fg)]"
+                      className="tabular font-display text-4xl font-bold tracking-[0.3em] text-[color:var(--color-fg)]"
                     >
                       {state.pin}
                     </motion.span>
