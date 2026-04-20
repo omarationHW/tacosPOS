@@ -32,13 +32,13 @@ export function Modal({ open, onClose, title, children, className = '' }: ModalP
       }}
     >
       <div
-        className={`max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 shadow-2xl ${className}`}
+        className={`max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] shadow-2xl ${className}`}
       >
-        <div className="flex items-center justify-between border-b border-gray-700 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
+        <div className="flex items-center justify-between border-b border-[color:var(--color-border)] px-6 py-4">
+          <h2 className="text-lg font-semibold text-[color:var(--color-fg)]">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-200"
+            className="rounded-lg p-2 text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-fg)]"
           >
             <X size={20} />
           </button>

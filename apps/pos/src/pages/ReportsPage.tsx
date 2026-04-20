@@ -218,8 +218,8 @@ export function ReportsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
-        <BarChart3 className="text-amber-500" size={28} />
-        <h1 className="text-2xl font-bold text-gray-100">Reportes</h1>
+        <BarChart3 className="text-[color:var(--color-accent)]" size={28} />
+        <h1 className="text-2xl font-bold text-[color:var(--color-fg)]">Reportes</h1>
       </div>
 
       {/* Report tabs */}
@@ -229,7 +229,7 @@ export function ReportsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors
-              ${tab === t.key ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+              ${tab === t.key ? 'bg-[color:var(--color-accent)] text-white' : 'bg-[color:var(--color-bg-elevated)] text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)]'}`}
           >
             {t.label}
           </button>
@@ -258,20 +258,20 @@ export function ReportsPage() {
               {showPerLine && (
                 <div className="mb-6 grid gap-3 sm:grid-cols-2">
                   {perLineData.map((ld) => (
-                    <div key={ld.lineId} className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                      <div className="mb-2 text-sm font-bold text-gray-300">{ld.lineName}</div>
+                    <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                      <div className="mb-2 text-sm font-bold text-[color:var(--color-fg-muted)]">{ld.lineName}</div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <div className="text-xs text-gray-500">Ventas</div>
-                          <div className="text-lg font-bold text-amber-400">${ld.totalSales.toFixed(2)}</div>
+                          <div className="text-xs text-[color:var(--color-fg-subtle)]">Ventas</div>
+                          <div className="text-lg font-bold text-[color:var(--color-accent)]">${ld.totalSales.toFixed(2)}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500">Ordenes</div>
-                          <div className="text-lg font-bold text-gray-100">{ld.totalOrders}</div>
+                          <div className="text-xs text-[color:var(--color-fg-subtle)]">Ordenes</div>
+                          <div className="text-lg font-bold text-[color:var(--color-fg)]">{ld.totalOrders}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500">Ticket Prom.</div>
-                          <div className="text-lg font-bold text-gray-100">${ld.avgTicket.toFixed(2)}</div>
+                          <div className="text-xs text-[color:var(--color-fg-subtle)]">Ticket Prom.</div>
+                          <div className="text-lg font-bold text-[color:var(--color-fg)]">${ld.avgTicket.toFixed(2)}</div>
                         </div>
                       </div>
                     </div>
@@ -281,39 +281,39 @@ export function ReportsPage() {
 
               {/* Combined summary */}
               <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                  <div className="text-xs text-gray-400">{showPerLine ? 'Total Combinado' : 'Total Ventas'}</div>
-                  <div className="text-2xl font-bold text-amber-400">${totalSales.toFixed(2)}</div>
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                  <div className="text-xs text-[color:var(--color-fg-muted)]">{showPerLine ? 'Total Combinado' : 'Total Ventas'}</div>
+                  <div className="text-2xl font-bold text-[color:var(--color-accent)]">${totalSales.toFixed(2)}</div>
                 </div>
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                  <div className="text-xs text-gray-400">Ordenes</div>
-                  <div className="text-2xl font-bold text-gray-100">{totalOrders}</div>
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                  <div className="text-xs text-[color:var(--color-fg-muted)]">Ordenes</div>
+                  <div className="text-2xl font-bold text-[color:var(--color-fg)]">{totalOrders}</div>
                 </div>
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                  <div className="text-xs text-gray-400">Ticket Promedio</div>
-                  <div className="text-2xl font-bold text-gray-100">${avgTicket.toFixed(2)}</div>
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                  <div className="text-xs text-[color:var(--color-fg-muted)]">Ticket Promedio</div>
+                  <div className="text-2xl font-bold text-[color:var(--color-fg)]">${avgTicket.toFixed(2)}</div>
                 </div>
               </div>
 
               {/* Payment method totals */}
               <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="text-xs text-green-400">Efectivo</div>
                   <div className="text-xl font-bold text-green-400">${totalCash.toFixed(2)}</div>
                 </div>
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="text-xs text-blue-400">Tarjeta</div>
                   <div className="text-xl font-bold text-blue-400">${totalCard.toFixed(2)}</div>
                 </div>
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="text-xs text-purple-400">Transferencia</div>
                   <div className="text-xl font-bold text-purple-400">${totalTransfer.toFixed(2)}</div>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-gray-100">Ventas por Dia</h3>
+                  <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Dia</h3>
                   <ExportButtons onCsv={exportSalesCsv} onPdf={exportSalesPdf} />
                 </div>
                 <SalesChart data={dailySales.map((d) => ({ label: d.date.slice(5), value: d.total }))} />
@@ -323,7 +323,7 @@ export function ReportsPage() {
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-gray-700 text-left text-xs text-gray-500">
+                        <tr className="border-b border-[color:var(--color-border)] text-left text-xs text-[color:var(--color-fg-subtle)]">
                           <th className="pb-2">Fecha</th>
                           <th className="pb-2 text-right">Total</th>
                           <th className="pb-2 text-right">Efectivo</th>
@@ -334,22 +334,22 @@ export function ReportsPage() {
                       </thead>
                       <tbody>
                         {dailySales.map((d) => (
-                          <tr key={d.date} className="border-b border-gray-700/50">
-                            <td className="py-2 text-gray-300">{d.date}</td>
-                            <td className="py-2 text-right font-medium text-amber-400">${d.total.toFixed(2)}</td>
+                          <tr key={d.date} className="border-b border-[color:var(--color-border)]/50">
+                            <td className="py-2 text-[color:var(--color-fg-muted)]">{d.date}</td>
+                            <td className="py-2 text-right font-medium text-[color:var(--color-accent)]">${d.total.toFixed(2)}</td>
                             <td className="py-2 text-right text-green-400">${d.cash.toFixed(2)}</td>
                             <td className="py-2 text-right text-blue-400">${d.card.toFixed(2)}</td>
                             <td className="py-2 text-right text-purple-400">${d.transfer.toFixed(2)}</td>
-                            <td className="py-2 text-right text-gray-400">{d.orderCount}</td>
+                            <td className="py-2 text-right text-[color:var(--color-fg-muted)]">{d.orderCount}</td>
                           </tr>
                         ))}
                         <tr className="font-bold">
-                          <td className="pt-2 text-gray-200">Total</td>
-                          <td className="pt-2 text-right text-amber-400">${totalSales.toFixed(2)}</td>
+                          <td className="pt-2 text-[color:var(--color-fg)]">Total</td>
+                          <td className="pt-2 text-right text-[color:var(--color-accent)]">${totalSales.toFixed(2)}</td>
                           <td className="pt-2 text-right text-green-400">${totalCash.toFixed(2)}</td>
                           <td className="pt-2 text-right text-blue-400">${totalCard.toFixed(2)}</td>
                           <td className="pt-2 text-right text-purple-400">${totalTransfer.toFixed(2)}</td>
-                          <td className="pt-2 text-right text-gray-300">{totalOrders}</td>
+                          <td className="pt-2 text-right text-[color:var(--color-fg-muted)]">{totalOrders}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -365,8 +365,8 @@ export function ReportsPage() {
               {showPerLine ? (
                 <div className="flex flex-col gap-6">
                   {perLineData.map((ld) => (
-                    <div key={ld.lineId} className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                      <h3 className="mb-3 text-sm font-bold text-gray-100">{ld.lineName} — Mas Vendidos</h3>
+                    <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Mas Vendidos</h3>
                       <SalesChart
                         data={ld.topProducts.map((p) => ({ label: p.name, value: p.totalQty }))}
                         formatValue={(v) => `${v} uds`}
@@ -376,9 +376,9 @@ export function ReportsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-gray-100">Productos Mas Vendidos</h3>
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Productos Mas Vendidos</h3>
                     <ExportButtons onCsv={exportProductsCsv} onPdf={exportProductsPdf} />
                   </div>
                   <SalesChart
@@ -397,19 +397,19 @@ export function ReportsPage() {
               {showPerLine ? (
                 <div className="grid gap-6 lg:grid-cols-2">
                   {perLineData.map((ld) => (
-                    <div key={ld.lineId} className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                      <h3 className="mb-3 text-sm font-bold text-gray-100">{ld.lineName}</h3>
+                    <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName}</h3>
                       {ld.paymentMethods.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-gray-500">Sin datos</p>
+                        <p className="py-4 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin datos</p>
                       ) : (
                         <div className="flex flex-col gap-2">
                           {ld.paymentMethods.map((pm) => (
-                            <div key={pm.method} className="flex items-center justify-between rounded-lg bg-gray-900 px-4 py-2.5">
+                            <div key={pm.method} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg)] px-4 py-2.5">
                               <div>
-                                <div className="text-sm font-medium text-gray-100">{pm.method}</div>
-                                <div className="text-xs text-gray-500">{pm.count} transacciones</div>
+                                <div className="text-sm font-medium text-[color:var(--color-fg)]">{pm.method}</div>
+                                <div className="text-xs text-[color:var(--color-fg-subtle)]">{pm.count} transacciones</div>
                               </div>
-                              <div className="text-lg font-bold text-amber-400">${pm.total.toFixed(2)}</div>
+                              <div className="text-lg font-bold text-[color:var(--color-accent)]">${pm.total.toFixed(2)}</div>
                             </div>
                           ))}
                         </div>
@@ -418,22 +418,22 @@ export function ReportsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-gray-100">Ventas por Metodo de Pago</h3>
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Metodo de Pago</h3>
                     <ExportButtons onCsv={exportPaymentsCsv} onPdf={exportPaymentsPdf} />
                   </div>
                   {paymentMethods.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-gray-500">Sin datos</p>
+                    <p className="py-8 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin datos</p>
                   ) : (
                     <div className="flex flex-col gap-3">
                       {paymentMethods.map((pm) => (
-                        <div key={pm.method} className="flex items-center justify-between rounded-lg bg-gray-900 px-4 py-3">
+                        <div key={pm.method} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg)] px-4 py-3">
                           <div>
-                            <div className="text-sm font-medium text-gray-100">{pm.method}</div>
-                            <div className="text-xs text-gray-500">{pm.count} transacciones</div>
+                            <div className="text-sm font-medium text-[color:var(--color-fg)]">{pm.method}</div>
+                            <div className="text-xs text-[color:var(--color-fg-subtle)]">{pm.count} transacciones</div>
                           </div>
-                          <div className="text-lg font-bold text-amber-400">${pm.total.toFixed(2)}</div>
+                          <div className="text-lg font-bold text-[color:var(--color-accent)]">${pm.total.toFixed(2)}</div>
                         </div>
                       ))}
                     </div>
@@ -449,8 +449,8 @@ export function ReportsPage() {
               {showPerLine ? (
                 <div className="flex flex-col gap-6">
                   {perLineData.map((ld) => (
-                    <div key={ld.lineId} className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                      <h3 className="mb-3 text-sm font-bold text-gray-100">{ld.lineName} — Horas Pico</h3>
+                    <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Horas Pico</h3>
                       <SalesChart
                         data={ld.hourlySales.map((h) => ({
                           label: `${String(h.hour).padStart(2, '0')}:00`, value: h.total,
@@ -461,9 +461,9 @@ export function ReportsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-gray-100">Ventas por Hora</h3>
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Hora</h3>
                     <ExportButtons onCsv={exportHoursCsv} onPdf={exportHoursPdf} />
                   </div>
                   <SalesChart
@@ -484,10 +484,10 @@ export function ReportsPage() {
                 <div className="flex flex-col gap-6">
                   {perLineData.map((ld) => (
                     <div key={ld.lineId}>
-                      <h3 className="mb-3 text-sm font-bold text-gray-100">{ld.lineName} — Cortes</h3>
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Cortes</h3>
                       {ld.cashCuts.length === 0 ? (
-                        <div className="rounded-xl border border-gray-700 bg-gray-800 p-8 text-center">
-                          <p className="text-gray-500">No hay cortes</p>
+                        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 text-center">
+                          <p className="text-[color:var(--color-fg-subtle)]">No hay cortes</p>
                         </div>
                       ) : (
                         <div className="flex flex-col gap-3">
@@ -502,12 +502,12 @@ export function ReportsPage() {
               ) : (
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-gray-100">Historial de Cortes</h3>
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Historial de Cortes</h3>
                     <ExportButtons onCsv={exportCutsCsv} onPdf={exportCutsPdf} />
                   </div>
                   {cashCuts.length === 0 ? (
-                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-12 text-center">
-                      <p className="text-gray-500">No hay cortes registrados</p>
+                    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-12 text-center">
+                      <p className="text-[color:var(--color-fg-subtle)]">No hay cortes registrados</p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-3">
@@ -528,9 +528,9 @@ export function ReportsPage() {
 
 function CutCard({ cut }: { cut: CashCutSummary }) {
   return (
-    <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm text-gray-300">
+        <span className="text-sm text-[color:var(--color-fg-muted)]">
           {new Date(cut.openedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium
@@ -546,20 +546,20 @@ function CutCard({ cut }: { cut: CashCutSummary }) {
       </div>
       <div className="grid grid-cols-4 gap-2 text-center">
         <div>
-          <div className="text-xs text-gray-500">Apertura</div>
-          <div className="text-sm font-medium text-gray-200">${cut.openingAmount.toFixed(2)}</div>
+          <div className="text-xs text-[color:var(--color-fg-subtle)]">Apertura</div>
+          <div className="text-sm font-medium text-[color:var(--color-fg)]">${cut.openingAmount.toFixed(2)}</div>
         </div>
         <div>
-          <div className="text-xs text-gray-500">Esperado</div>
-          <div className="text-sm font-medium text-gray-200">${cut.expected.toFixed(2)}</div>
+          <div className="text-xs text-[color:var(--color-fg-subtle)]">Esperado</div>
+          <div className="text-sm font-medium text-[color:var(--color-fg)]">${cut.expected.toFixed(2)}</div>
         </div>
         <div>
-          <div className="text-xs text-gray-500">Real</div>
-          <div className="text-sm font-medium text-gray-200">${cut.closingAmount.toFixed(2)}</div>
+          <div className="text-xs text-[color:var(--color-fg-subtle)]">Real</div>
+          <div className="text-sm font-medium text-[color:var(--color-fg)]">${cut.closingAmount.toFixed(2)}</div>
         </div>
         <div>
-          <div className="text-xs text-gray-500">Operador</div>
-          <div className="text-sm font-medium text-gray-200">{cut.openerName}</div>
+          <div className="text-xs text-[color:var(--color-fg-subtle)]">Operador</div>
+          <div className="text-sm font-medium text-[color:var(--color-fg)]">{cut.openerName}</div>
         </div>
       </div>
     </div>

@@ -150,20 +150,20 @@ export function OrderHistoryPage() {
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
-        <ClipboardList className="text-amber-500" size={28} />
-        <h1 className="text-2xl font-bold text-gray-100">Historial de Pedidos</h1>
+        <ClipboardList className="text-[color:var(--color-accent)]" size={28} />
+        <h1 className="text-2xl font-bold text-[color:var(--color-fg)]">Historial de Pedidos</h1>
       </div>
 
       {/* Search */}
       <div className="mb-6">
         <div className="relative max-w-md">
-          <Search size={18} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-500" />
+          <Search size={18} className="absolute top-1/2 left-3 -translate-y-1/2 text-[color:var(--color-fg-subtle)]" />
           <input
             type="text"
             placeholder="Buscar por nombre de cliente..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-600 bg-gray-800 py-2.5 pr-3 pl-10 text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] py-2.5 pr-3 pl-10 text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
           />
         </div>
       </div>
@@ -174,9 +174,9 @@ export function OrderHistoryPage() {
           <LoadingSpinner size="lg" />
         </div>
       ) : orders.length === 0 ? (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-12 text-center">
-          <ClipboardList className="mx-auto mb-3 text-gray-600" size={48} strokeWidth={1.5} />
-          <p className="text-gray-400">No se encontraron pedidos</p>
+        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-12 text-center">
+          <ClipboardList className="mx-auto mb-3 text-[color:var(--color-fg-subtle)]" size={48} strokeWidth={1.5} />
+          <p className="text-[color:var(--color-fg-muted)]">No se encontraron pedidos</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -190,17 +190,17 @@ export function OrderHistoryPage() {
             });
 
             return (
-              <div key={order.id} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden">
+              <div key={order.id} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] overflow-hidden">
                 {/* Header - clickable */}
                 <button
                   onClick={() => toggleExpand(order.id)}
-                  className="flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors hover:bg-gray-750
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  className="flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors hover:bg-[color:var(--color-bg-inset)]
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-mono text-gray-500">#{shortId}</span>
-                      <span className="font-medium text-gray-100">
+                      <span className="text-xs font-mono text-[color:var(--color-fg-subtle)]">#{shortId}</span>
+                      <span className="font-medium text-[color:var(--color-fg)]">
                         {order.customer_name || 'Sin nombre'}
                       </span>
                       <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
@@ -209,44 +209,49 @@ export function OrderHistoryPage() {
                           Para Llevar
                         </span>
                       )}
+                      {order.order_type === 'delivery' && (
+                        <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-xs text-purple-400">
+                          A Domicilio
+                        </span>
+                      )}
                       {order.payment_method && (
-                        <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">
+                        <span className="rounded bg-[color:var(--color-bg-inset)] px-1.5 py-0.5 text-xs text-[color:var(--color-fg-muted)]">
                           {paymentLabels[order.payment_method] ?? order.payment_method}
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 text-xs text-gray-500">
+                    <div className="mt-1 text-xs text-[color:var(--color-fg-subtle)]">
                       {dateStr} · {order.items.length} producto{order.items.length !== 1 && 's'}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-lg font-bold text-amber-400">${order.total.toFixed(2)}</div>
+                    <div className="text-lg font-bold text-[color:var(--color-accent)]">${order.total.toFixed(2)}</div>
                   </div>
-                  <div className="shrink-0 text-gray-500">
+                  <div className="shrink-0 text-[color:var(--color-fg-subtle)]">
                     {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </div>
                 </button>
 
                 {/* Expanded detail */}
                 {isExpanded && (
-                  <div className="border-t border-gray-700 bg-gray-850 px-4 py-3">
+                  <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-4 py-3">
                     <div className="flex flex-col gap-1.5">
                       {order.items.map((item, i) => (
                         <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-300">
+                          <span className="text-[color:var(--color-fg-muted)]">
                             {item.quantity}x {item.product_name}
-                            <span className="ml-2 text-xs text-gray-500">@ ${item.unit_price.toFixed(2)}</span>
+                            <span className="ml-2 text-xs text-[color:var(--color-fg-subtle)]">@ ${item.unit_price.toFixed(2)}</span>
                           </span>
-                          <span className="text-gray-400">${item.subtotal.toFixed(2)}</span>
+                          <span className="text-[color:var(--color-fg-muted)]">${item.subtotal.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 border-t border-gray-700 pt-3 text-sm">
-                      <div className="flex justify-between text-gray-400">
+                    <div className="mt-3 border-t border-[color:var(--color-border)] pt-3 text-sm">
+                      <div className="flex justify-between text-[color:var(--color-fg-muted)]">
                         <span>Subtotal</span>
                         <span>${order.subtotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-gray-400">
+                      <div className="flex justify-between text-[color:var(--color-fg-muted)]">
                         <span>IVA</span>
                         <span>${order.tax.toFixed(2)}</span>
                       </div>
@@ -262,13 +267,13 @@ export function OrderHistoryPage() {
                           <span>+${order.tip.toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="mt-1 flex justify-between font-bold text-gray-100">
+                      <div className="mt-1 flex justify-between font-bold text-[color:var(--color-fg)]">
                         <span>Total</span>
-                        <span className="text-amber-400">${order.total.toFixed(2)}</span>
+                        <span className="text-[color:var(--color-accent)]">${order.total.toFixed(2)}</span>
                       </div>
                     </div>
                     {order.notes && (
-                      <p className="mt-2 text-xs text-gray-500">Notas: {order.notes}</p>
+                      <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">Notas: {order.notes}</p>
                     )}
                   </div>
                 )}
@@ -281,8 +286,8 @@ export function OrderHistoryPage() {
             <button
               onClick={loadMore}
               disabled={loading}
-              className="mx-auto cursor-pointer rounded-lg bg-gray-800 px-6 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-50"
+              className="mx-auto cursor-pointer rounded-lg bg-[color:var(--color-bg-elevated)] px-6 py-2.5 text-sm font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-bg-inset)]
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)] disabled:opacity-50"
             >
               {loading ? 'Cargando...' : 'Cargar mas'}
             </button>

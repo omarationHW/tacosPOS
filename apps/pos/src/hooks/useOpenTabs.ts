@@ -14,7 +14,7 @@ export interface OpenTab {
   mesa: string;
   tableId: string | null;
   customerName: string | null;
-  orderType: 'dine_in' | 'takeout';
+  orderType: 'dine_in' | 'takeout' | 'delivery';
   orderIds: string[];
   items: TabItem[];
   subtotal: number;
@@ -77,12 +77,14 @@ export function useOpenTabs() {
       let key: string;
       let mesa: string;
 
-      if (orderType === 'takeout' || !customerName) {
-        key = `takeout-${order.id}`;
+      if (orderType === 'takeout' || orderType === 'delivery' || !customerName) {
+        const prefix = orderType === 'delivery' ? 'delivery' : 'takeout';
+        const label = orderType === 'delivery' ? 'A Domicilio' : 'Para Llevar';
+        key = `${prefix}-${order.id}`;
         const shortId = order.id.slice(0, 6).toUpperCase();
         mesa = customerName
-          ? `${customerName} (Para Llevar)`
-          : (order.notes || `Para Llevar #${shortId}`);
+          ? `${customerName} (${label})`
+          : (order.notes || `${label} #${shortId}`);
       } else {
         key = `customer-${customerName.toLowerCase()}`;
         mesa = customerName;
@@ -91,7 +93,7 @@ export function useOpenTabs() {
       const existing = tabMap.get(key) ?? {
         tableId: order.table_id as string | null,
         customerName,
-        orderType: orderType as 'dine_in' | 'takeout',
+        orderType: orderType as 'dine_in' | 'takeout' | 'delivery',
         mesa,
         orderIds: [] as string[],
         items: [] as TabItem[],

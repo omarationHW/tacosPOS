@@ -1,39 +1,33 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
+import NumberFlow from '@number-flow/react';
 import {
   Wallet,
-  DollarSign,
   ArrowDownCircle,
   ArrowUpCircle,
   Clock,
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { useCashRegister, type CashMovement } from '@/hooks/useCashRegister';
+import { toast } from 'sonner';
+import { useCashRegister } from '@/hooks/useCashRegister';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 
 const movementLabels: Record<string, { label: string; color: string }> = {
-  sale: { label: 'Venta', color: 'text-green-400' },
-  deposit: { label: 'Deposito', color: 'text-blue-400' },
-  tip: { label: 'Propina', color: 'text-amber-400' },
-  withdrawal: { label: 'Retiro', color: 'text-red-400' },
+  sale:       { label: 'Venta',    color: 'text-emerald-600 dark:text-emerald-400' },
+  deposit:    { label: 'Depósito', color: 'text-sky-600 dark:text-sky-400' },
+  tip:        { label: 'Propina',  color: 'text-amber-600 dark:text-amber-400' },
+  withdrawal: { label: 'Retiro',   color: 'text-red-600 dark:text-red-400' },
 };
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatTime(dateStr: string) {
+  return new Date(dateStr).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
 
@@ -59,10 +53,10 @@ export function CashRegisterPage() {
   const [busy, setBusy] = useState(false);
   const [showCloseForm, setShowCloseForm] = useState(false);
 
-  const handleOpenSession = async () => {
+  const handleOpen = async () => {
     const amount = parseFloat(openingAmount);
     if (isNaN(amount) || amount < 0) {
-      toast.error('Ingresa un monto inicial valido');
+      toast.error('Ingresa un monto inicial válido');
       return;
     }
     setBusy(true);
@@ -77,7 +71,7 @@ export function CashRegisterPage() {
     }
   };
 
-  const handleCloseSession = async () => {
+  const handleClose = async () => {
     const amount = parseFloat(closingAmount);
     if (isNaN(amount) || amount < 0) {
       toast.error('Ingresa el monto real en caja');
@@ -100,7 +94,7 @@ export function CashRegisterPage() {
   const handleAddMovement = async () => {
     const amount = parseFloat(movAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Ingresa un monto valido');
+      toast.error('Ingresa un monto válido');
       return;
     }
     setBusy(true);
@@ -108,7 +102,7 @@ export function CashRegisterPage() {
       await addMovement(movType, amount, movDesc);
       setMovAmount('');
       setMovDesc('');
-      toast.success(`${movType === 'deposit' ? 'Deposito' : 'Retiro'} registrado`);
+      toast.success(`${movType === 'deposit' ? 'Depósito' : 'Retiro'} registrado`);
     } catch {
       toast.error('Error al registrar movimiento');
     } finally {
@@ -127,220 +121,196 @@ export function CashRegisterPage() {
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
-        <Wallet className="text-amber-500" size={28} />
-        <h1 className="text-2xl font-bold text-gray-100">Caja</h1>
+        <Wallet className="text-[color:var(--color-accent)]" size={32} />
+        <h1 className="font-display text-3xl font-semibold text-[color:var(--color-fg)]">Caja</h1>
+        {activeSession && (
+          <span className="rounded-full bg-emerald-500/15 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            Turno abierto
+          </span>
+        )}
       </div>
 
-      {/* Tabs */}
       <div className="mb-6 flex gap-2">
-        <button
-          onClick={() => setTab('current')}
-          className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors
-            ${tab === 'current' ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
-        >
-          Turno Actual
-        </button>
-        <button
-          onClick={() => setTab('history')}
-          className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors
-            ${tab === 'history' ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
-        >
-          Historial de Cortes
-        </button>
+        {(['current', 'history'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`cursor-pointer rounded-full border px-4 py-2 text-sm font-semibold transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
+              ${tab === t
+                ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]'
+                : 'border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]'
+              }`}
+          >
+            {t === 'current' ? 'Turno actual' : 'Historial'}
+          </button>
+        ))}
       </div>
 
       {tab === 'current' && (
         <>
           {!activeSession ? (
-            /* Open session form */
-            <div className="mx-auto max-w-md rounded-xl border border-gray-700 bg-gray-800 p-6">
-              <div className="mb-4 text-center">
-                <Wallet className="mx-auto mb-2 text-gray-500" size={48} strokeWidth={1.5} />
-                <h2 className="text-lg font-bold text-gray-100">Abrir Turno</h2>
-                <p className="text-sm text-gray-400">Ingresa el monto inicial en caja</p>
+            <div className="mx-auto max-w-md rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-6">
+              <div className="mb-5 text-center">
+                <Wallet className="mx-auto mb-2 text-[color:var(--color-fg-subtle)]" size={48} strokeWidth={1.5} />
+                <h2 className="font-display text-xl font-semibold text-[color:var(--color-fg)]">Abrir turno</h2>
+                <p className="text-sm text-[color:var(--color-fg-muted)]">Ingresa el monto inicial en caja</p>
               </div>
-              <div className="mb-4">
-                <label className="mb-1 block text-sm text-gray-400">Monto Inicial</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={openingAmount}
-                  onChange={(e) => setOpeningAmount(e.target.value)}
-                  placeholder="$0.00"
-                  className="w-full rounded-lg border border-gray-600 bg-gray-900 px-4 py-3 text-center text-xl font-bold
-                    text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-              <Button
-                variant="primary"
-                size="lg"
-                loading={busy}
-                onClick={handleOpenSession}
-                className="w-full"
-              >
-                Abrir Turno
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Monto inicial</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={openingAmount}
+                onChange={(e) => setOpeningAmount(e.target.value)}
+                placeholder="$0.00"
+                className="mb-4 w-full rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-3 text-center font-mono text-2xl font-bold tabular-nums
+                  text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
+              />
+              <Button variant="primary" size="lg" loading={busy} onClick={handleOpen} className="w-full">
+                Abrir turno
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Summary cards */}
-              <div className="lg:col-span-3">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                    <div className="mb-1 text-xs text-gray-400">Apertura</div>
-                    <div className="text-xl font-bold text-gray-100">${activeSession.opening_amount.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                    <div className="mb-1 text-xs text-green-400">Ventas</div>
-                    <div className="text-xl font-bold text-green-400">${summary.sales.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                    <div className="mb-1 text-xs text-amber-400">Propinas</div>
-                    <div className="text-xl font-bold text-amber-400">${summary.tips.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                    <div className="mb-1 text-xs text-blue-400">Depositos</div>
-                    <div className="text-xl font-bold text-blue-400">${summary.deposits.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                    <div className="mb-1 text-xs text-red-400">Retiros</div>
-                    <div className="text-xl font-bold text-red-400">${summary.withdrawals.toFixed(2)}</div>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-300">Esperado en Caja</span>
-                    <span className="text-2xl font-bold text-amber-400">${summary.expected.toFixed(2)}</span>
-                  </div>
-                </div>
+            <div className="space-y-6">
+              {/* Summary */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <StatTile label="Apertura"  value={activeSession.opening_amount} />
+                <StatTile label="Ventas"    value={summary.sales}      tone="success" />
+                <StatTile label="Propinas"  value={summary.tips}       tone="accent" />
+                <StatTile label="Depósitos" value={summary.deposits}   tone="info" />
+                <StatTile label="Retiros"   value={summary.withdrawals} tone="danger" />
               </div>
 
-              {/* Add movement form */}
-              <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
-                <h3 className="mb-3 text-sm font-bold text-gray-100">Registrar Movimiento</h3>
-                <div className="mb-3 flex gap-1.5">
-                  <button
-                    onClick={() => setMovType('deposit')}
-                    className={`flex-1 cursor-pointer rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                      ${movType === 'deposit' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-                  >
-                    <ArrowDownCircle size={16} className="mx-auto mb-1" />
-                    Deposito
-                  </button>
-                  <button
-                    onClick={() => setMovType('withdrawal')}
-                    className={`flex-1 cursor-pointer rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                      ${movType === 'withdrawal' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-                  >
-                    <ArrowUpCircle size={16} className="mx-auto mb-1" />
-                    Retiro
-                  </button>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl border-2 border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] p-5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
+                    Esperado en caja
+                  </span>
+                  <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
+                    $<NumberFlow value={summary.expected} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                  </span>
                 </div>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={movAmount}
-                  onChange={(e) => setMovAmount(e.target.value)}
-                  placeholder="Monto"
-                  className="mb-2 w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm
-                    text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
-                />
-                <input
-                  type="text"
-                  value={movDesc}
-                  onChange={(e) => setMovDesc(e.target.value)}
-                  placeholder="Descripcion (opcional)"
-                  className="mb-3 w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm
-                    text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
-                />
-                <Button
-                  variant="primary"
-                  size="md"
-                  loading={busy}
-                  onClick={handleAddMovement}
-                  className="w-full"
-                >
-                  Registrar
-                </Button>
-              </div>
+              </motion.div>
 
-              {/* Movements list */}
-              <div className="rounded-xl border border-gray-700 bg-gray-800 p-4 lg:col-span-2">
-                <h3 className="mb-3 text-sm font-bold text-gray-100">Movimientos del Turno</h3>
-                {movements.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-gray-500">Sin movimientos aun</p>
-                ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <div className="flex flex-col gap-2">
+              <div className="grid gap-4 lg:grid-cols-3">
+                {/* Add movement */}
+                <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                  <h3 className="mb-3 font-display text-base font-semibold text-[color:var(--color-fg)]">Registrar movimiento</h3>
+                  <div className="mb-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setMovType('deposit')}
+                      className={`flex cursor-pointer flex-col items-center gap-1 rounded-xl px-3 py-3 text-sm font-semibold transition-colors
+                        ${movType === 'deposit'
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]'
+                        }`}
+                    >
+                      <ArrowDownCircle size={18} />
+                      Depósito
+                    </button>
+                    <button
+                      onClick={() => setMovType('withdrawal')}
+                      className={`flex cursor-pointer flex-col items-center gap-1 rounded-xl px-3 py-3 text-sm font-semibold transition-colors
+                        ${movType === 'withdrawal'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]'
+                        }`}
+                    >
+                      <ArrowUpCircle size={18} />
+                      Retiro
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={movAmount}
+                    onChange={(e) => setMovAmount(e.target.value)}
+                    placeholder="Monto"
+                    className="mb-2 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 font-mono text-sm tabular-nums
+                      text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={movDesc}
+                    onChange={(e) => setMovDesc(e.target.value)}
+                    placeholder="Descripción (opcional)"
+                    className="mb-3 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm
+                      text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
+                  />
+                  <Button variant="primary" loading={busy} onClick={handleAddMovement} className="w-full">
+                    Registrar
+                  </Button>
+                </div>
+
+                {/* Movements */}
+                <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4 lg:col-span-2">
+                  <h3 className="mb-3 font-display text-base font-semibold text-[color:var(--color-fg)]">Movimientos del turno</h3>
+                  {movements.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin movimientos aún</p>
+                  ) : (
+                    <div className="max-h-[400px] space-y-2 overflow-y-auto">
                       {movements.map((mov) => {
-                        const meta = movementLabels[mov.type] ?? { label: mov.type, color: 'text-gray-400' };
+                        const meta = movementLabels[mov.type] ?? { label: mov.type, color: 'text-[color:var(--color-fg-muted)]' };
                         return (
-                          <div key={mov.id} className="flex items-center justify-between rounded-lg bg-gray-900 px-3 py-2.5">
-                            <div>
-                              <span className={`text-sm font-medium ${meta.color}`}>{meta.label}</span>
+                          <div key={mov.id} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg)] px-3 py-2.5">
+                            <div className="min-w-0">
+                              <span className={`text-sm font-semibold ${meta.color}`}>{meta.label}</span>
                               {mov.description && (
-                                <span className="ml-2 text-xs text-gray-500">{mov.description}</span>
+                                <span className="ml-2 text-xs text-[color:var(--color-fg-subtle)]">{mov.description}</span>
                               )}
-                              <div className="text-xs text-gray-500">{formatTime(mov.created_at)}</div>
+                              <div className="text-[11px] text-[color:var(--color-fg-subtle)]">{formatTime(mov.created_at)}</div>
                             </div>
-                            <span className={`text-sm font-bold ${mov.type === 'withdrawal' ? 'text-red-400' : 'text-gray-100'}`}>
+                            <span className={`font-mono text-sm font-bold tabular-nums
+                              ${mov.type === 'withdrawal' ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--color-fg)]'}`}
+                            >
                               {mov.type === 'withdrawal' ? '-' : '+'}${mov.amount.toFixed(2)}
                             </span>
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Close session */}
-              <div className="lg:col-span-3">
+              <div>
                 {!showCloseForm ? (
-                  <Button
-                    variant="danger"
-                    size="lg"
-                    onClick={() => setShowCloseForm(true)}
-                    className="w-full"
-                  >
-                    Cerrar Turno
+                  <Button variant="danger" size="lg" onClick={() => setShowCloseForm(true)} className="w-full">
+                    Cerrar turno
                   </Button>
                 ) : (
-                  <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-                    <h3 className="mb-3 text-sm font-bold text-gray-100">Cerrar Turno</h3>
-                    <div className="mb-3">
-                      <label className="mb-1 block text-sm text-gray-400">Monto real en caja</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={closingAmount}
-                        onChange={(e) => setClosingAmount(e.target.value)}
-                        placeholder="$0.00"
-                        className="w-full rounded-lg border border-gray-600 bg-gray-900 px-4 py-3 text-center text-xl font-bold
-                          text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="mb-1 block text-sm text-gray-400">Notas (opcional)</label>
-                      <input
-                        type="text"
-                        value={closingNotes}
-                        onChange={(e) => setClosingNotes(e.target.value)}
-                        placeholder="Observaciones del turno..."
-                        className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm
-                          text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
+                  <div className="rounded-2xl border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-5">
+                    <h3 className="mb-3 font-display text-base font-semibold text-[color:var(--color-fg)]">Cerrar turno</h3>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Monto real en caja</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={closingAmount}
+                      onChange={(e) => setClosingAmount(e.target.value)}
+                      placeholder="$0.00"
+                      className="mb-3 w-full rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-3 text-center font-mono text-2xl font-bold tabular-nums
+                        text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
+                    />
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Notas (opcional)</label>
+                    <input
+                      type="text"
+                      value={closingNotes}
+                      onChange={(e) => setClosingNotes(e.target.value)}
+                      placeholder="Observaciones del turno..."
+                      className="mb-3 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm
+                        text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
+                    />
                     <div className="flex gap-2">
-                      <Button variant="secondary" size="md" onClick={() => setShowCloseForm(false)} className="flex-1">
-                        Cancelar
-                      </Button>
-                      <Button variant="danger" size="md" loading={busy} onClick={handleCloseSession} className="flex-1">
-                        Confirmar Cierre
-                      </Button>
+                      <Button variant="secondary" onClick={() => setShowCloseForm(false)} className="flex-1">Cancelar</Button>
+                      <Button variant="danger" loading={busy} onClick={handleClose} className="flex-1">Confirmar cierre</Button>
                     </div>
                   </div>
                 )}
@@ -353,74 +323,89 @@ export function CashRegisterPage() {
       {tab === 'history' && (
         <div>
           {history.length === 0 ? (
-            <div className="rounded-xl border border-gray-700 bg-gray-800 p-12 text-center">
-              <Clock className="mx-auto mb-3 text-gray-600" size={48} strokeWidth={1.5} />
-              <p className="text-gray-400">No hay cortes anteriores</p>
+            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-12 text-center">
+              <Clock className="mx-auto mb-3 text-[color:var(--color-fg-subtle)]" size={48} strokeWidth={1.5} />
+              <p className="text-[color:var(--color-fg-muted)]">No hay cortes anteriores</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
               {history.map((session) => (
-                <div key={session.id} className="rounded-xl border border-gray-700 bg-gray-800 p-4">
+                <div key={session.id} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <span className="text-sm font-bold text-gray-100">
-                        {formatDate(session.opened_at)}
-                      </span>
-                      <span className="mx-2 text-gray-500">-</span>
-                      <span className="text-sm text-gray-400">
+                    <div className="text-sm">
+                      <span className="font-display font-semibold text-[color:var(--color-fg)]">{formatDate(session.opened_at)}</span>
+                      <span className="mx-2 text-[color:var(--color-fg-subtle)]">–</span>
+                      <span className="text-[color:var(--color-fg-muted)]">
                         {session.closed_at ? formatDate(session.closed_at) : 'Abierto'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {session.difference != null && (
-                        <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium
-                          ${session.difference === 0
-                            ? 'bg-green-500/20 text-green-400'
-                            : session.difference > 0
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-red-500/20 text-red-400'
-                          }`}
-                        >
-                          {session.difference === 0 ? (
-                            <><CheckCircle size={12} /> Cuadra</>
-                          ) : (
-                            <><XCircle size={12} /> {session.difference > 0 ? '+' : ''}${session.difference.toFixed(2)}</>
-                          )}
-                        </span>
-                      )}
-                    </div>
+                    {session.difference != null && (
+                      <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs font-semibold tabular-nums
+                        ${session.difference === 0
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          : session.difference > 0
+                            ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                            : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {session.difference === 0 ? (
+                          <><CheckCircle size={12} /> Cuadra</>
+                        ) : (
+                          <><XCircle size={12} /> {session.difference > 0 ? '+' : ''}${session.difference.toFixed(2)}</>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4">
-                    <div>
-                      <div className="text-xs text-gray-500">Apertura</div>
-                      <div className="text-sm font-medium text-gray-200">${session.opening_amount.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Esperado</div>
-                      <div className="text-sm font-medium text-gray-200">
-                        ${session.expected_amount?.toFixed(2) ?? '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Real</div>
-                      <div className="text-sm font-medium text-gray-200">
-                        ${session.closing_amount?.toFixed(2) ?? '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Abrio</div>
-                      <div className="text-sm font-medium text-gray-200">{session.opener_name}</div>
-                    </div>
+                    <HistoryField label="Apertura" value={`$${session.opening_amount.toFixed(2)}`} />
+                    <HistoryField label="Esperado" value={session.expected_amount != null ? `$${session.expected_amount.toFixed(2)}` : '—'} />
+                    <HistoryField label="Real"     value={session.closing_amount != null ? `$${session.closing_amount.toFixed(2)}` : '—'} />
+                    <HistoryField label="Abrió"    value={session.opener_name ?? '—'} />
                   </div>
-                  {session.notes && (
-                    <p className="mt-2 text-xs text-gray-500">{session.notes}</p>
-                  )}
+                  {session.notes && <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">{session.notes}</p>}
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: 'success' | 'info' | 'danger' | 'accent';
+}) {
+  const color = tone === 'success'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : tone === 'info'
+      ? 'text-sky-600 dark:text-sky-400'
+      : tone === 'danger'
+        ? 'text-red-600 dark:text-red-400'
+        : tone === 'accent'
+          ? 'text-amber-600 dark:text-amber-400'
+          : 'text-[color:var(--color-fg)]';
+  return (
+    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+      <div className={`text-xs font-semibold uppercase tracking-wider ${color}`}>{label}</div>
+      <div className={`mt-1 font-mono text-2xl font-bold tabular-nums ${color}`}>
+        $<NumberFlow value={value} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+      </div>
+    </div>
+  );
+}
+
+function HistoryField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-[color:var(--color-fg-subtle)]">{label}</div>
+      <div className="text-sm font-semibold text-[color:var(--color-fg)]">{value}</div>
     </div>
   );
 }

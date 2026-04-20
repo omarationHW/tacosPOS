@@ -7,11 +7,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-const variants = {
-  primary: 'bg-amber-600 hover:bg-amber-700 text-white',
-  secondary: 'bg-gray-700 hover:bg-gray-600 text-gray-100',
-  danger: 'bg-red-600 hover:bg-red-700 text-white',
-  ghost: 'bg-transparent hover:bg-gray-700 text-gray-300',
+const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
+  primary:
+    'bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)] hover:bg-[color:var(--color-accent-hover)]',
+  secondary:
+    'border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] text-[color:var(--color-fg)] hover:bg-[color:var(--color-bg-inset)]',
+  danger:
+    'bg-[color:var(--color-danger)] text-[color:var(--color-danger-fg)] hover:opacity-90',
+  ghost:
+    'bg-transparent text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-fg)]',
 };
 
 const sizeClasses = {
@@ -31,8 +35,8 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-medium transition-colors
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900
+      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-semibold transition-colors
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-bg)]
         disabled:cursor-not-allowed disabled:opacity-50
         ${variants[variant]} ${sizeClasses[size]} ${className}`}
       disabled={disabled || loading}

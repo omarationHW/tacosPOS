@@ -23,9 +23,9 @@ export function DataTable<T>({
   className = '',
 }: TableProps<T>) {
   return (
-    <div className={`overflow-x-auto rounded-lg border border-gray-700 ${className}`}>
+    <div className={`overflow-x-auto rounded-lg border border-[color:var(--color-border)] ${className}`}>
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-gray-700 bg-gray-800/50 text-xs uppercase text-gray-400">
+        <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)]/50 text-xs uppercase text-[color:var(--color-fg-muted)]">
           <tr>
             {columns.map((col) => (
               <th key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
@@ -34,16 +34,16 @@ export function DataTable<T>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-700/50">
+        <tbody className="divide-y divide-[color:var(--color-border)]/50">
           {data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">
+              <td colSpan={columns.length} className="px-4 py-8 text-center text-[color:var(--color-fg-subtle)]">
                 {emptyMessage}
               </td>
             </tr>
           ) : (
             data.map((item) => (
-              <tr key={keyExtractor(item)} className="hover:bg-gray-800/30">
+              <tr key={keyExtractor(item)} className="hover:bg-[color:var(--color-bg-elevated)]/30">
                 {columns.map((col) => (
                   <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
                     {col.render(item)}

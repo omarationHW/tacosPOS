@@ -24,8 +24,8 @@ export function DateRangeFilter({
           <button
             key={preset.key}
             onClick={() => onPreset(preset.key)}
-            className="cursor-pointer rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors
-              hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="cursor-pointer rounded-lg bg-[color:var(--color-bg-inset)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors
+              hover:bg-[color:var(--color-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
           >
             {preset.label}
           </button>
@@ -35,16 +35,16 @@ export function DateRangeFilter({
         type="date"
         value={startDate}
         onChange={(e) => onStartChange(e.target.value)}
-        className="rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm text-gray-100
-          focus:border-amber-500 focus:outline-none"
+        className="rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm text-[color:var(--color-fg)]
+          focus:border-[color:var(--color-accent)] focus:outline-none"
       />
-      <span className="text-gray-500">-</span>
+      <span className="text-[color:var(--color-fg-subtle)]">-</span>
       <input
         type="date"
         value={endDate}
         onChange={(e) => onEndChange(e.target.value)}
-        className="rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm text-gray-100
-          focus:border-amber-500 focus:outline-none"
+        className="rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm text-[color:var(--color-fg)]
+          focus:border-[color:var(--color-accent)] focus:outline-none"
       />
     </div>
   );

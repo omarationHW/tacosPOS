@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Users, Plus, Pencil, Trash2, Search, Phone, Cake } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useCustomers } from '@/hooks/useCustomers';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -143,9 +143,9 @@ export function CustomersPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="text-amber-500" size={28} />
-          <h1 className="text-2xl font-bold text-gray-100">Clientes</h1>
-          <span className="rounded-full bg-gray-700 px-2.5 py-0.5 text-sm text-gray-300">
+          <Users className="text-[color:var(--color-accent)]" size={28} />
+          <h1 className="text-2xl font-bold text-[color:var(--color-fg)]">Clientes</h1>
+          <span className="rounded-full bg-[color:var(--color-bg-inset)] px-2.5 py-0.5 text-sm text-[color:var(--color-fg-muted)]">
             {customers.length}
           </span>
         </div>
@@ -157,14 +157,14 @@ export function CustomersPage() {
 
       {/* Upcoming birthdays */}
       {upcomingBirthdays.length > 0 && (
-        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-bold text-amber-400">
+        <div className="mb-6 rounded-xl border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/5 p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[color:var(--color-accent)]">
             <Cake size={16} />
             Cumpleanos proximos (30 dias)
           </div>
           <div className="flex flex-wrap gap-2">
             {upcomingBirthdays.map((c) => (
-              <span key={c.id} className="rounded-full bg-amber-500/20 px-3 py-1 text-sm text-amber-300">
+              <span key={c.id} className="rounded-full bg-[color:var(--color-accent-soft)] px-3 py-1 text-sm text-[color:var(--color-accent)]">
                 {c.name} - {new Date(c.birthday! + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
               </span>
             ))}
@@ -175,13 +175,13 @@ export function CustomersPage() {
       {/* Search */}
       <div className="mb-6">
         <div className="relative max-w-md">
-          <Search size={18} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-500" />
+          <Search size={18} className="absolute top-1/2 left-3 -translate-y-1/2 text-[color:var(--color-fg-subtle)]" />
           <input
             type="text"
             placeholder="Buscar por nombre o telefono..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-600 bg-gray-800 py-2.5 pr-3 pl-10 text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] py-2.5 pr-3 pl-10 text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
           />
         </div>
       </div>
@@ -191,14 +191,14 @@ export function CustomersPage() {
         {filteredCustomers.map((customer) => (
           <div
             key={customer.id}
-            className="flex items-center gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4"
+            className="flex items-center gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-700 text-sm font-bold text-gray-300">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-inset)] text-sm font-bold text-[color:var(--color-fg-muted)]">
               {customer.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-100 truncate">{customer.name}</h3>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
+              <h3 className="font-medium text-[color:var(--color-fg)] truncate">{customer.name}</h3>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-[color:var(--color-fg-muted)]">
                 {customer.phone && (
                   <span className="flex items-center gap-1">
                     <Phone size={12} />
@@ -216,19 +216,19 @@ export function CustomersPage() {
                 )}
               </div>
               {customer.notes && (
-                <p className="mt-1 text-xs text-gray-500 truncate">{customer.notes}</p>
+                <p className="mt-1 text-xs text-[color:var(--color-fg-subtle)] truncate">{customer.notes}</p>
               )}
             </div>
             <div className="flex gap-1">
               <button
                 onClick={() => openEdit(customer)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-amber-500"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
               >
                 <Pencil size={16} />
               </button>
               <button
                 onClick={() => setDeleteConfirm(customer)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-red-400"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-red-400"
               >
                 <Trash2 size={16} />
               </button>
@@ -238,7 +238,7 @@ export function CustomersPage() {
       </div>
 
       {filteredCustomers.length === 0 && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-8 text-center text-gray-500">
+        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 text-center text-[color:var(--color-fg-subtle)]">
           {search ? 'No se encontraron clientes.' : 'No hay clientes registrados. Crea el primero.'}
         </div>
       )}

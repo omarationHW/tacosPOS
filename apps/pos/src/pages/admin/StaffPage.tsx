@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Pencil, Trash2, ShieldCheck, ShieldOff } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Users, Plus, Pencil, Trash2, ShieldCheck, ShieldOff, KeyRound, Copy, Check, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -19,6 +21,7 @@ interface StaffMember {
   role: string;
   is_active: boolean;
   business_lines: BusinessLineRecord[];
+  has_initial_pin: boolean;
 }
 
 const ROLE_OPTIONS = [
@@ -44,7 +47,6 @@ const roleLabels: Record<string, string> = {
 
 interface StaffForm {
   email: string;
-  password: string;
   full_name: string;
   role: string;
   lines: string[];
@@ -52,11 +54,16 @@ interface StaffForm {
 
 const emptyForm: StaffForm = {
   email: '',
-  password: '',
   full_name: '',
   role: 'cashier',
   lines: [],
 };
+
+const PIN_PASSWORD_PREFIX = 'la-andaluza-pin-';
+
+function generatePin(): string {
+  return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+}
 
 export function StaffPage() {
   const { availableBusinessLines } = useBusinessLine();
@@ -71,23 +78,22 @@ export function StaffPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<StaffMember | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchStaff = useCallback(async () => {
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name');
+  const [pinReveal, setPinReveal] = useState<{ member: StaffMember; pin: string; label: string } | null>(null);
 
-    if (error) {
+  const fetchStaff = useCallback(async () => {
+    const [profilesRes, linksRes, seedsRes] = await Promise.all([
+      supabase.from('profiles').select('*').order('full_name'),
+      supabase.from('profile_business_lines').select('profile_id, business_line_id, business_line:business_lines(*)'),
+      supabase.from('pin_initial_seeds').select('profile_id'),
+    ]);
+
+    if (profilesRes.error) {
       setLoading(false);
       return;
     }
 
-    const { data: links } = await supabase
-      .from('profile_business_lines')
-      .select('profile_id, business_line_id, business_line:business_lines(*)');
-
     const linksByProfile = new Map<string, BusinessLineRecord[]>();
-    for (const link of (links ?? []) as any[]) {
+    for (const link of (linksRes.data ?? []) as any[]) {
       const bl = Array.isArray(link.business_line) ? link.business_line[0] : link.business_line;
       if (!bl) continue;
       const existing = linksByProfile.get(link.profile_id) ?? [];
@@ -95,13 +101,16 @@ export function StaffPage() {
       linksByProfile.set(link.profile_id, existing);
     }
 
-    const members: StaffMember[] = (profiles ?? []).map((p: any) => ({
+    const seedIds = new Set((seedsRes.data ?? []).map((s: any) => s.profile_id as string));
+
+    const members: StaffMember[] = (profilesRes.data ?? []).map((p: any) => ({
       id: p.id,
       email: p.email,
       full_name: p.full_name,
       role: p.role,
       is_active: p.is_active,
       business_lines: linksByProfile.get(p.id) ?? [],
+      has_initial_pin: seedIds.has(p.id),
     }));
 
     setStaff(members);
@@ -134,7 +143,6 @@ export function StaffPage() {
     setEditing(member);
     setForm({
       email: member.email,
-      password: '',
       full_name: member.full_name,
       role: member.role,
       lines: member.business_lines.map((bl) => bl.id),
@@ -146,70 +154,40 @@ export function StaffPage() {
     setSaving(true);
     try {
       if (editing) {
-        // Update profile
-        const updates: any = {
-          full_name: form.full_name,
-          role: form.role as 'admin' | 'cashier' | 'waiter' | 'kitchen',
-        };
-
         const { error: profileErr } = await supabase
           .from('profiles')
-          .update(updates)
+          .update({
+            full_name: form.full_name,
+            role: form.role as 'admin' | 'cashier' | 'waiter' | 'kitchen',
+          })
           .eq('id', editing.id);
-
         if (profileErr) throw profileErr;
 
-        // Update password if provided
-        if (form.password.trim()) {
-          const { error: pwErr } = await supabase.functions.invoke('admin-update-user', {
-            body: { user_id: editing.id, password: form.password },
-          });
-          if (pwErr) {
-            toast.error('Perfil actualizado pero no se pudo cambiar la contrasena. Usa el dashboard de Supabase.');
-          }
-        }
-
-        // Update business lines
-        await supabase
-          .from('profile_business_lines')
-          .delete()
-          .eq('profile_id', editing.id);
-
+        await supabase.from('profile_business_lines').delete().eq('profile_id', editing.id);
         if (form.lines.length > 0) {
-          const links = form.lines.map((blId) => ({
-            profile_id: editing.id,
-            business_line_id: blId,
-          }));
-          const { error: linkErr } = await supabase
-            .from('profile_business_lines')
-            .insert(links);
+          const links = form.lines.map((blId) => ({ profile_id: editing.id, business_line_id: blId }));
+          const { error: linkErr } = await supabase.from('profile_business_lines').insert(links);
           if (linkErr) throw linkErr;
         }
 
         toast.success(`${form.full_name || form.email} actualizado`);
       } else {
-        // Create new user via Supabase Auth
-        if (!form.email.trim() || !form.password.trim()) {
-          toast.error('Email y contrasena son obligatorios');
+        if (!form.email.trim()) {
+          toast.error('Email es obligatorio');
           setSaving(false);
           return;
         }
 
+        const newPin = generatePin();
         const { data: authData, error: authErr } = await supabase.auth.signUp({
           email: form.email.trim(),
-          password: form.password,
-          options: {
-            data: { full_name: form.full_name },
-          },
+          password: PIN_PASSWORD_PREFIX + newPin,
+          options: { data: { full_name: form.full_name } },
         });
-
         if (authErr) throw authErr;
         if (!authData.user) throw new Error('No se pudo crear el usuario');
 
         const newUserId = authData.user.id;
-
-        // Update profile with role and name (trigger creates it)
-        // Small delay to let the trigger fire
         await new Promise((r) => setTimeout(r, 500));
 
         const { error: profileErr } = await supabase
@@ -219,21 +197,35 @@ export function StaffPage() {
             email: form.email.trim(),
             full_name: form.full_name,
             role: form.role as 'admin' | 'cashier' | 'waiter' | 'kitchen',
+            pin_hash: 'set',
           }, { onConflict: 'id' });
-
         if (profileErr) throw profileErr;
 
-        // Assign business lines
         if (form.lines.length > 0) {
-          const links = form.lines.map((blId) => ({
-            profile_id: newUserId,
-            business_line_id: blId,
-          }));
-          const { error: linkErr } = await supabase
-            .from('profile_business_lines')
-            .insert(links);
+          const links = form.lines.map((blId) => ({ profile_id: newUserId, business_line_id: blId }));
+          const { error: linkErr } = await supabase.from('profile_business_lines').insert(links);
           if (linkErr) throw linkErr;
         }
+
+        await supabase.from('pin_initial_seeds').insert({
+          profile_id: newUserId,
+          email: form.email.trim(),
+          pin: newPin,
+        });
+
+        setPinReveal({
+          member: {
+            id: newUserId,
+            email: form.email.trim(),
+            full_name: form.full_name,
+            role: form.role,
+            is_active: true,
+            business_lines: [],
+            has_initial_pin: true,
+          },
+          pin: newPin,
+          label: 'PIN inicial',
+        });
 
         toast.success(`${form.full_name || form.email} creado`);
       }
@@ -253,7 +245,6 @@ export function StaffPage() {
         .from('profiles')
         .update({ is_active: !member.is_active })
         .eq('id', member.id);
-
       if (error) throw error;
       toast.success(member.is_active ? `${member.full_name} desactivado` : `${member.full_name} activado`);
       await fetchStaff();
@@ -266,14 +257,8 @@ export function StaffPage() {
     if (!deleteConfirm) return;
     setDeleting(true);
     try {
-      // Delete profile (cascade deletes profile_business_lines)
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', deleteConfirm.id);
-
+      const { error } = await supabase.from('profiles').delete().eq('id', deleteConfirm.id);
       if (error) throw error;
-
       toast.success(`${deleteConfirm.full_name || deleteConfirm.email} eliminado`);
       setDeleteConfirm(null);
       await fetchStaff();
@@ -282,6 +267,37 @@ export function StaffPage() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handlePeekPin = async (member: StaffMember) => {
+    const { data, error } = await supabase.rpc('peek_initial_pin', { target_profile_id: member.id });
+    if (error) {
+      toast.error('No se pudo obtener el PIN inicial');
+      return;
+    }
+    if (!data) {
+      toast.info('Este usuario ya no tiene PIN inicial (ya lo recibió o cambió)');
+      await fetchStaff();
+      return;
+    }
+    setPinReveal({ member, pin: data as string, label: 'PIN inicial' });
+  };
+
+  const handleResetPin = async (member: StaffMember) => {
+    const { data, error } = await supabase.rpc('admin_reset_pin', { target_profile_id: member.id });
+    if (error) {
+      toast.error(error.message || 'Error al restablecer PIN');
+      return;
+    }
+    setPinReveal({ member, pin: data as string, label: 'Nuevo PIN' });
+    await fetchStaff();
+  };
+
+  const acknowledgePinDelivered = async () => {
+    if (!pinReveal) return;
+    await supabase.rpc('delete_initial_pin', { target_profile_id: pinReveal.member.id });
+    setPinReveal(null);
+    await fetchStaff();
   };
 
   if (loading) {
@@ -296,9 +312,9 @@ export function StaffPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="text-amber-500" size={28} />
-          <h1 className="text-2xl font-bold text-gray-100">Personal</h1>
-          <span className="rounded-full bg-gray-700 px-2.5 py-0.5 text-sm text-gray-300">
+          <Users className="text-[color:var(--color-accent)]" size={28} />
+          <h1 className="text-2xl font-bold text-[color:var(--color-fg)]">Personal</h1>
+          <span className="rounded-full bg-[color:var(--color-bg-inset)] px-2.5 py-0.5 text-sm text-[color:var(--color-fg-muted)]">
             {staff.length}
           </span>
         </div>
@@ -312,16 +328,16 @@ export function StaffPage() {
         {staff.map((member) => (
           <div
             key={member.id}
-            className={`flex items-center gap-4 rounded-xl border bg-gray-800 p-4 ${
-              member.is_active ? 'border-gray-700' : 'border-gray-700/50 opacity-60'
+            className={`flex items-center gap-4 rounded-xl border bg-[color:var(--color-bg-elevated)] p-4 ${
+              member.is_active ? 'border-[color:var(--color-border)]' : 'border-[color:var(--color-border)]/50 opacity-60'
             }`}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-700 text-sm font-bold text-gray-300">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-inset)] text-sm font-bold text-[color:var(--color-fg-muted)]">
               {(member.full_name || member.email).charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-medium text-gray-100 truncate">
+                <h3 className="font-medium text-[color:var(--color-fg)] truncate">
                   {member.full_name || member.email}
                 </h3>
                 <Badge variant={roleBadgeVariant[member.role] ?? 'info'}>
@@ -330,37 +346,56 @@ export function StaffPage() {
                 {!member.is_active && (
                   <Badge variant="danger">Inactivo</Badge>
                 )}
+                {member.has_initial_pin && (
+                  <Badge variant="warning">PIN inicial pendiente</Badge>
+                )}
               </div>
-              <div className="mt-0.5 text-xs text-gray-500">{member.email}</div>
+              <div className="mt-0.5 text-xs text-[color:var(--color-fg-subtle)]">{member.email}</div>
               <div className="mt-1 flex flex-wrap gap-1">
                 {member.business_lines.map((bl) => (
-                  <span key={bl.id} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">
+                  <span key={bl.id} className="rounded bg-[color:var(--color-bg-inset)] px-1.5 py-0.5 text-xs text-[color:var(--color-fg-muted)]">
                     {bl.name}
                   </span>
                 ))}
                 {member.business_lines.length === 0 && (
-                  <span className="text-xs text-gray-500">Sin lineas asignadas</span>
+                  <span className="text-xs text-[color:var(--color-fg-subtle)]">Sin lineas asignadas</span>
                 )}
               </div>
             </div>
             <div className="flex gap-1">
+              {member.has_initial_pin && (
+                <button
+                  onClick={() => handlePeekPin(member)}
+                  className="rounded-lg p-2 text-[color:var(--color-accent)] hover:bg-[color:var(--color-bg-inset)]"
+                  title="Ver PIN inicial"
+                >
+                  <KeyRound size={16} />
+                </button>
+              )}
+              <button
+                onClick={() => handleResetPin(member)}
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
+                title="Generar nuevo PIN"
+              >
+                <RefreshCw size={16} />
+              </button>
               <button
                 onClick={() => handleToggleActive(member)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-fg)]"
                 title={member.is_active ? 'Desactivar' : 'Activar'}
               >
                 {member.is_active ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
               </button>
               <button
                 onClick={() => openEdit(member)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-amber-500"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
                 title="Editar"
               >
                 <Pencil size={16} />
               </button>
               <button
                 onClick={() => setDeleteConfirm(member)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-red-400"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-red-400"
                 title="Eliminar"
               >
                 <Trash2 size={16} />
@@ -371,12 +406,11 @@ export function StaffPage() {
       </div>
 
       {staff.length === 0 && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-8 text-center text-gray-500">
+        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 text-center text-[color:var(--color-fg-subtle)]">
           No hay personal registrado.
         </div>
       )}
 
-      {/* Create / Edit Modal */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -399,14 +433,11 @@ export function StaffPage() {
             disabled={!!editing}
           />
 
-          <Input
-            label={editing ? 'Nueva contrasena (dejar vacio para no cambiar)' : 'Contrasena'}
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder={editing ? '********' : 'Minimo 6 caracteres'}
-            required={!editing}
-          />
+          {!editing && (
+            <div className="rounded-lg border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent-soft)] p-3 text-xs text-[color:var(--color-accent)]">
+              Se generará un PIN de 4 dígitos al crear el usuario. Podrás verlo una vez después de guardar.
+            </div>
+          )}
 
           <Select
             label="Rol"
@@ -416,7 +447,7 @@ export function StaffPage() {
           />
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-300">Lineas de negocio</label>
+            <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Lineas de negocio</label>
             <div className="flex gap-2">
               {availableBusinessLines.map((bl) => (
                 <button
@@ -425,8 +456,8 @@ export function StaffPage() {
                   onClick={() => toggleLine(bl.id)}
                   className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                     form.lines.includes(bl.id)
-                      ? 'border-amber-500 bg-amber-500/20 text-amber-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                      ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]'
+                      : 'border-[color:var(--color-border-strong)] text-[color:var(--color-fg-muted)] hover:border-[color:var(--color-border-strong)]'
                   }`}
                 >
                   {bl.name}
@@ -446,7 +477,6 @@ export function StaffPage() {
         </div>
       </Modal>
 
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
@@ -456,6 +486,96 @@ export function StaffPage() {
         confirmLabel="Eliminar"
         loading={deleting}
       />
+
+      <PinRevealDialog
+        state={pinReveal}
+        onClose={() => setPinReveal(null)}
+        onAcknowledge={acknowledgePinDelivered}
+      />
     </div>
+  );
+}
+
+function PinRevealDialog({
+  state,
+  onClose,
+  onAcknowledge,
+}: {
+  state: { member: StaffMember; pin: string; label: string } | null;
+  onClose: () => void;
+  onAcknowledge: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    if (!state) return;
+    await navigator.clipboard.writeText(state.pin);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <Dialog.Root open={!!state} onOpenChange={(next) => !next && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay asChild>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-[color:var(--color-overlay)] backdrop-blur-sm"
+          />
+        </Dialog.Overlay>
+        <Dialog.Content asChild>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: 10 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            className="fixed left-1/2 top-1/2 z-50 flex w-full max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 shadow-2xl"
+          >
+            {state && (
+              <>
+                <div>
+                  <Dialog.Title className="font-display text-xl font-semibold text-[color:var(--color-fg)]">
+                    {state.label}
+                  </Dialog.Title>
+                  <Dialog.Description className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
+                    {state.member.full_name || state.member.email}
+                  </Dialog.Description>
+                </div>
+
+                <div className="flex items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] py-8">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={state.pin}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="tabular font-display text-6xl font-bold tracking-[0.3em] text-[color:var(--color-fg)]"
+                    >
+                      {state.pin}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+
+                <p className="text-xs text-[color:var(--color-fg-muted)]">
+                  Este PIN solo se muestra una vez. Cópialo y entrégalo al usuario. Una vez confirmado, no podrás verlo de nuevo (tendrás que generar uno nuevo).
+                </p>
+
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={copy} className="flex-1">
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                    {copied ? 'Copiado' : 'Copiar PIN'}
+                  </Button>
+                  <Button onClick={onAcknowledge} className="flex-1">
+                    Entregado
+                  </Button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

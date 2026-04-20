@@ -14,7 +14,7 @@ export function RoleRedirect() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-900">
+      <div className="flex h-screen items-center justify-center bg-[color:var(--color-bg)]">
         <LoadingSpinner size="lg" />
       </div>
     );

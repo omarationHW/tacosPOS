@@ -1,15 +1,18 @@
 import { useState, useMemo } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
+import { Rows3, Rows2, LayoutGrid as LayoutGridIcon } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLineFilter } from '@/components/BusinessLineToggle';
+import { useDensity, type Density } from '@/contexts/DensityContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { OrderPanel, type CartItem, type OrderType, type CartItemModifier } from '@/components/pos/OrderPanel';
 import { ModifierModal } from '@/components/pos/ModifierModal';
+import { ProductSearchCommand } from '@/components/pos/ProductSearchCommand';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 
 function makeCartKey(productId: string, modifiers: CartItemModifier[]): string {
@@ -23,6 +26,7 @@ export function POS() {
   const { categories, loading: categoriesLoading } = useCategories();
   const { createOrder } = useOrders();
   const { user } = useAuth();
+  const { density, setDensity } = useDensity();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -146,7 +150,12 @@ export function POS() {
 
     setSubmitting(true);
     try {
-      const notes = orderType === 'takeout' ? 'Para Llevar' : undefined;
+      const notes =
+        orderType === 'takeout'
+          ? 'Para Llevar'
+          : orderType === 'delivery'
+            ? 'A Domicilio'
+            : undefined;
 
       const result = await createOrder({
         items: cart,
@@ -189,8 +198,12 @@ export function POS() {
 
   return (
     <div className="-m-4 flex h-[calc(100vh)] overflow-hidden lg:-m-6">
-      {/* Left: Categories + Products */}
+      {/* Left: Search + Categories + Products */}
       <div className="flex flex-1 flex-col overflow-hidden p-4 lg:p-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <ProductSearchCommand products={filteredProducts} onSelect={addToCart} />
+          <DensityPicker density={density} onChange={setDensity} />
+        </div>
         <div className="mb-4">
           <CategoryTabs
             categories={filteredCategories}
@@ -204,7 +217,7 @@ export function POS() {
       </div>
 
       {/* Right: Order Panel */}
-      <div className="w-[280px] shrink-0 lg:w-[340px]">
+      <div className="w-[300px] shrink-0 lg:w-[360px]">
         <OrderPanel
           items={cart}
           orderType={orderType}
@@ -220,7 +233,6 @@ export function POS() {
         />
       </div>
 
-      {/* Modifier Modal */}
       {modifierProduct && (
         <ModifierModal
           product={modifierProduct}
@@ -228,6 +240,43 @@ export function POS() {
           onClose={() => setModifierProduct(null)}
         />
       )}
+    </div>
+  );
+}
+
+function DensityPicker({ density, onChange }: { density: Density; onChange: (d: Density) => void }) {
+  const opts: Array<{ key: Density; label: string; icon: React.ReactNode }> = [
+    { key: 'compact',     label: 'Compacto', icon: <Rows3 size={16} /> },
+    { key: 'normal',      label: 'Normal',   icon: <LayoutGridIcon size={16} /> },
+    { key: 'comfortable', label: 'Cómodo',   icon: <Rows2 size={16} /> },
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Densidad"
+      className="flex shrink-0 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-1"
+    >
+      {opts.map(({ key, label, icon }) => {
+        const active = density === key;
+        return (
+          <button
+            key={key}
+            role="radio"
+            aria-checked={active}
+            title={label}
+            onClick={() => onChange(key)}
+            className={`flex h-10 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
+              ${active
+                ? 'bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]'
+                : 'text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]'
+              }`}
+          >
+            {icon}
+            <span className="hidden lg:inline">{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

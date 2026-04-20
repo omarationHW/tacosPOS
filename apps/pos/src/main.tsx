@@ -1,30 +1,37 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BusinessLineProvider } from '@/contexts/BusinessLineContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { DensityProvider } from '@/contexts/DensityContext';
 import { App } from '@/App';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <BusinessLineProvider>
-          <App />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: '#1f2937',
-                color: '#f3f4f6',
-                border: '1px solid #374151',
-              },
-            }}
-          />
-        </BusinessLineProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <DensityProvider>
+        <BrowserRouter>
+        <AuthProvider>
+          <BusinessLineProvider>
+            <App />
+            <Toaster
+              position="top-right"
+              theme="system"
+              richColors
+              closeButton
+              toastOptions={{
+                classNames: {
+                  toast: 'font-sans',
+                },
+              }}
+            />
+          </BusinessLineProvider>
+        </AuthProvider>
+      </BrowserRouter>
+      </DensityProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

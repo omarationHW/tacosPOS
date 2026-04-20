@@ -1,11 +1,11 @@
 import type { KitchenOrderItem } from '@/hooks/useKitchenOrders';
 
 const statusConfig = {
-  pending: { label: 'Pendiente', color: 'bg-amber-500/20 text-amber-400 border-amber-500/40' },
-  preparing: { label: 'Preparando', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
-  ready: { label: 'Listo', color: 'bg-green-500/20 text-green-400 border-green-500/40' },
-  delivered: { label: 'Entregado', color: 'bg-gray-500/20 text-gray-400 border-gray-500/40' },
-  cancelled: { label: 'Cancelado', color: 'bg-red-500/20 text-red-400 border-red-500/40' },
+  pending:   { label: 'Pendiente',  className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
+  preparing: { label: 'Preparando', className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  ready:     { label: 'Listo',      className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  delivered: { label: 'Entregado',  className: 'bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg-muted)]' },
+  cancelled: { label: 'Cancelado',  className: 'bg-red-500/15 text-red-600 dark:text-red-400' },
 };
 
 interface KitchenItemRowProps {
@@ -14,22 +14,21 @@ interface KitchenItemRowProps {
 
 export function KitchenItemRow({ item }: KitchenItemRowProps) {
   const config = statusConfig[item.status];
-
   return (
-    <div className="py-1.5">
+    <div className="py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-gray-200">
-          <span className="font-semibold text-gray-100">{item.quantity}×</span>{' '}
+        <span className="text-sm text-[color:var(--color-fg)]">
+          <span className="font-mono font-bold tabular-nums text-[color:var(--color-fg)]">
+            {item.quantity}×
+          </span>{' '}
           {item.product?.name ?? 'Producto'}
         </span>
-        <span
-          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.color}`}
-        >
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.className}`}>
           {config.label}
         </span>
       </div>
       {item.notes && (
-        <p className="mt-0.5 text-xs font-medium text-amber-300/80">
+        <p className="mt-1 text-xs font-medium italic text-[color:var(--color-accent)]">
           → {item.notes}
         </p>
       )}

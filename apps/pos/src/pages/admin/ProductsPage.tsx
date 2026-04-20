@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Package, Plus, Pencil, Trash2, Search } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useProducts, useModifierGroups, type ProductWithRelations } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { ImageUpload } from '@/components/ui/ImageUpload';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -44,7 +43,6 @@ export function ProductsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProductWithRelations | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedModifierGroups, setSelectedModifierGroups] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -54,14 +52,12 @@ export function ProductsPage() {
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
 
-  // New modifier group inline creation
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupModifiers, setNewGroupModifiers] = useState<{ name: string; price_override: string }[]>([
     { name: '', price_override: '0' },
   ]);
 
-  // Filter by selected line
   const lineProducts = useMemo(() => {
     if (!resolvedLineId) return products;
     return products.filter((p) => p.business_line_id === resolvedLineId);
@@ -75,7 +71,6 @@ export function ProductsPage() {
     });
   }, [lineProducts, search, filterCategory]);
 
-  // Categories for the selected line
   const lineCategories = useMemo(() => {
     if (!resolvedLineId) return categories;
     return categories.filter((c) => c.business_line_id === resolvedLineId);
@@ -86,7 +81,6 @@ export function ProductsPage() {
   const openCreate = () => {
     setEditing(null);
     setForm({ ...emptyForm, sort_order: lineProducts.length, business_line_id: activeBusinessLine?.id ?? '' });
-    setImageFile(null);
     setSelectedModifierGroups([]);
     setShowNewGroup(false);
     setModalOpen(true);
@@ -103,7 +97,6 @@ export function ProductsPage() {
       sort_order: product.sort_order,
       business_line_id: product.business_line_id,
     });
-    setImageFile(null);
     setSelectedModifierGroups(
       product.modifier_groups?.map((mg) => mg.modifier_group_id) ?? [],
     );
@@ -114,11 +107,11 @@ export function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.category_id) {
-      toast.error('Selecciona una categoria');
+      toast.error('Selecciona una categoría');
       return;
     }
     if (!form.business_line_id) {
-      toast.error('Selecciona una linea de negocio');
+      toast.error('Selecciona una línea de negocio');
       return;
     }
     setSaving(true);
@@ -134,10 +127,10 @@ export function ProductsPage() {
       };
 
       if (editing) {
-        await updateProduct(editing.id, productData, imageFile, selectedModifierGroups);
+        await updateProduct(editing.id, productData, null, selectedModifierGroups);
         toast.success('Producto actualizado');
       } else {
-        await createProduct(productData, imageFile, selectedModifierGroups);
+        await createProduct(productData, null, selectedModifierGroups);
         toast.success('Producto creado');
       }
       setModalOpen(false);
@@ -195,10 +188,13 @@ export function ProductsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Package className="text-amber-500" size={28} />
-          <h1 className="text-2xl font-bold text-gray-100">Productos</h1>
+          <Package className="text-[color:var(--color-accent)]" size={28} />
+          <h1 className="font-display text-3xl font-semibold text-[color:var(--color-fg)]">Productos</h1>
+          <span className="rounded-full bg-[color:var(--color-accent-soft)] px-3 py-0.5 text-sm font-semibold text-[color:var(--color-accent)]">
+            {filteredProducts.length}
+          </span>
         </div>
         <Button onClick={openCreate}>
           <Plus size={18} />
@@ -207,87 +203,103 @@ export function ProductsPage() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={18} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-500" />
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search size={18} className="absolute top-1/2 left-3 -translate-y-1/2 text-[color:var(--color-fg-subtle)]" />
           <input
             type="text"
             placeholder="Buscar productos..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-600 bg-gray-800 py-2.5 pr-3 pl-10 text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] py-2.5 pr-3 pl-10 text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)] focus:border-[color:var(--color-accent)] focus:outline-none"
           />
         </div>
         <Select
-          options={[{ value: '', label: 'Todas las categorias' }, ...categoryOptions]}
+          options={[{ value: '', label: 'Todas las categorías' }, ...categoryOptions]}
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="w-48"
+          className="w-56"
         />
       </div>
 
-      {/* Product Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredProducts.map((product) => (
-          <div
-            key={product.id}
-            className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800"
-          >
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="h-36 w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-36 items-center justify-center bg-gray-700/50">
-                <Package size={40} className="text-gray-600" />
-              </div>
-            )}
-            <div className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-gray-100 truncate">{product.name}</h3>
-                  <p className="text-sm text-gray-400">{product.category?.name}</p>
+      {/* Product rows */}
+      {filteredProducts.length === 0 ? (
+        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-10 text-center text-[color:var(--color-fg-subtle)]">
+          {search || filterCategory ? 'No se encontraron productos con esos filtros.' : 'No hay productos. Crea el primero.'}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)]">
+          <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto] items-center gap-4 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-inset)]/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--color-fg-subtle)] sm:grid">
+            <div>Producto</div>
+            <div>Categoría</div>
+            <div className="text-right">Precio</div>
+            <div>Posición</div>
+            <div>Estado</div>
+            <div className="w-[72px]"></div>
+          </div>
+          <div className="divide-y divide-[color:var(--color-border)]">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="grid grid-cols-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-[color:var(--color-bg-inset)]/40 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto]"
+              >
+                <div className="min-w-0">
+                  <p className="font-display text-base font-semibold text-[color:var(--color-fg)] line-clamp-1">
+                    {product.name}
+                  </p>
+                  {product.description && (
+                    <p className="mt-0.5 text-xs text-[color:var(--color-fg-subtle)] line-clamp-1">
+                      {product.description}
+                    </p>
+                  )}
+                  {product.modifier_groups && product.modifier_groups.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {product.modifier_groups.map((mg) => (
+                        <span
+                          key={mg.id}
+                          className="rounded-full bg-[color:var(--color-accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-accent)]"
+                        >
+                          {mg.modifier_group?.name ?? '—'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className="ml-2 text-lg font-bold text-amber-500">
+                <div className="text-sm text-[color:var(--color-fg-muted)]">
+                  {product.category?.name ?? '—'}
+                </div>
+                <div className="font-mono text-base font-semibold tabular-nums text-[color:var(--color-fg)] sm:text-right">
                   ${Number(product.price).toFixed(2)}
-                </span>
-              </div>
-              {product.description && (
-                <p className="mt-1 text-sm text-gray-500 line-clamp-2">{product.description}</p>
-              )}
-              <div className="mt-3 flex items-center justify-between">
+                </div>
+                <div className="font-mono text-sm tabular-nums text-[color:var(--color-fg-subtle)]">
+                  #{product.sort_order}
+                </div>
                 <Badge variant={product.is_active ? 'success' : 'danger'}>
                   {product.is_active ? 'Activo' : 'Inactivo'}
                 </Badge>
-                <div className="flex gap-1">
+                <div className="flex gap-1 justify-self-end">
                   <button
                     onClick={() => openEdit(product)}
-                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-amber-500"
+                    aria-label={`Editar ${product.name}`}
+                    className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
                   >
                     <Pencil size={16} />
                   </button>
                   <button
                     onClick={() => setDeleteConfirm(product)}
-                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-red-400"
+                    aria-label={`Eliminar ${product.name}`}
+                    className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-red-400"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {filteredProducts.length === 0 && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-8 text-center text-gray-500">
-          {search || filterCategory ? 'No se encontraron productos con esos filtros.' : 'No hay productos. Crea el primero.'}
         </div>
       )}
 
-      {/* Product Form Modal */}
+      {/* Form Modal */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -315,9 +327,8 @@ export function ProductsPage() {
             />
           </div>
 
-          {/* Business line selector */}
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-300">Linea de negocio</label>
+            <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Línea de negocio</label>
             <div className="flex gap-2">
               {availableBusinessLines.map((bl) => (
                 <button
@@ -326,8 +337,8 @@ export function ProductsPage() {
                   onClick={() => setForm({ ...form, business_line_id: bl.id, category_id: '' })}
                   className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                     form.business_line_id === bl.id
-                      ? 'border-amber-500 bg-amber-500/20 text-amber-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                      ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]'
+                      : 'border-[color:var(--color-border-strong)] text-[color:var(--color-fg-muted)] hover:border-[color:var(--color-border-strong)]'
                   }`}
                 >
                   {bl.name}
@@ -337,42 +348,38 @@ export function ProductsPage() {
           </div>
 
           <Select
-            label="Categoria"
+            label="Categoría"
             options={categories
               .filter((c) => c.business_line_id === form.business_line_id)
               .map((c) => ({ value: c.id, label: c.name }))}
             value={form.category_id}
             onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-            placeholder="Seleccionar categoria"
+            placeholder="Seleccionar categoría"
           />
 
           <Input
-            label="Descripcion"
+            label="Descripción"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Descripcion opcional"
-          />
-
-          <ImageUpload
-            value={editing?.image_url ?? null}
-            onChange={(file) => setImageFile(file)}
+            placeholder="Descripción opcional (para referencia interna)"
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Orden"
+              label="Posición"
               type="number"
               value={form.sort_order}
               onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
               min={0}
+              helper="Menor número = aparece primero dentro de la categoría"
             />
             <div className="flex items-end gap-3 pb-1">
-              <label className="flex items-center gap-2 text-sm text-gray-300">
+              <label className="flex items-center gap-2 text-sm text-[color:var(--color-fg-muted)]">
                 <input
                   type="checkbox"
                   checked={form.is_active}
                   onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="accent-amber-500"
+                  className="accent-[color:var(--color-accent)]"
                 />
                 Activo
               </label>
@@ -381,7 +388,7 @@ export function ProductsPage() {
 
           {/* Modifier Groups */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-300">Grupos de modificadores</label>
+            <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Grupos de modificadores</label>
             {modifierGroups.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {modifierGroups.map((g) => (
@@ -391,8 +398,8 @@ export function ProductsPage() {
                     onClick={() => toggleModifierGroup(g.id)}
                     className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                       selectedModifierGroups.includes(g.id)
-                        ? 'border-amber-500 bg-amber-500/20 text-amber-500'
-                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                        ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]'
+                        : 'border-[color:var(--color-border-strong)] text-[color:var(--color-fg-muted)] hover:border-[color:var(--color-border-strong)]'
                     }`}
                   >
                     {g.name}
@@ -409,7 +416,7 @@ export function ProductsPage() {
                 Crear nuevo grupo
               </Button>
             ) : (
-              <div className="space-y-3 rounded-lg border border-gray-600 bg-gray-800/50 p-4">
+              <div className="space-y-3 rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg)]/50 p-4">
                 <Input
                   label="Nombre del grupo"
                   value={newGroupName}
@@ -417,11 +424,11 @@ export function ProductsPage() {
                   placeholder="Ej: Tipo de carne"
                 />
                 <div className="space-y-2">
-                  <label className="block text-xs text-gray-400">Modificadores</label>
+                  <label className="block text-xs text-[color:var(--color-fg-muted)]">Modificadores</label>
                   {newGroupModifiers.map((mod, idx) => (
                     <div key={idx} className="flex gap-2">
                       <input
-                        className="flex-1 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:border-amber-500 focus:outline-none"
+                        className="flex-1 rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-2 text-sm text-[color:var(--color-fg)] focus:border-[color:var(--color-accent)] focus:outline-none"
                         placeholder="Nombre"
                         value={mod.name}
                         onChange={(e) => {
@@ -431,7 +438,7 @@ export function ProductsPage() {
                         }}
                       />
                       <input
-                        className="w-24 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:border-amber-500 focus:outline-none"
+                        className="w-24 rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-2 text-sm text-[color:var(--color-fg)] focus:border-[color:var(--color-accent)] focus:outline-none"
                         type="number"
                         step="0.01"
                         placeholder="$0.00"
@@ -457,12 +464,7 @@ export function ProductsPage() {
                   </Button>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    type="button"
-                    onClick={() => setShowNewGroup(false)}
-                  >
+                  <Button variant="secondary" size="sm" type="button" onClick={() => setShowNewGroup(false)}>
                     Cancelar
                   </Button>
                   <Button size="sm" type="button" onClick={handleCreateModifierGroup}>
@@ -484,7 +486,6 @@ export function ProductsPage() {
         </form>
       </Modal>
 
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}

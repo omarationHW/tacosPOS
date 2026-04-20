@@ -1,4 +1,5 @@
-import { getCategoryEmoji } from '@/lib/categoryEmojis';
+import { motion } from 'motion/react';
+import { useDensity } from '@/contexts/DensityContext';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 
 interface ProductGridProps {
@@ -7,47 +8,55 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ products, onAddToCart }: ProductGridProps) {
+  const { config } = useDensity();
+
   if (products.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-gray-500">
+      <div className="flex flex-1 items-center justify-center text-[color:var(--color-fg-subtle)]">
         <p>No hay productos en esta categoría</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-3 gap-2 lg:gap-3 xl:grid-cols-4">
-      {products.map((product) => (
-        <button
-          key={product.id}
-          onClick={() => onAddToCart(product)}
-          className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-gray-700 bg-gray-800 p-3 lg:gap-2 lg:p-4
-            text-center transition-colors hover:border-amber-500/60 hover:bg-gray-750
-            motion-safe:active:scale-[0.97] motion-safe:transition-all
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-        >
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="h-12 w-12 rounded-lg object-cover lg:h-16 lg:w-16"
-            />
-          ) : (
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-lg lg:h-16 lg:w-16"
-              style={{ backgroundColor: (product.category?.color ?? '#6b7280') + '20' }}
-            >
-              <span className="text-2xl lg:text-3xl">
-                {getCategoryEmoji(product.category?.name ?? '')}
+    <div className={`grid ${config.gridCols} ${config.cardGap}`}>
+      {products.map((product) => {
+        const hasModifiers = (product.modifier_groups?.length ?? 0) > 0;
+        return (
+          <motion.button
+            key={product.id}
+            onClick={() => onAddToCart(product)}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            className={`group relative flex min-h-[110px] cursor-pointer flex-col justify-between rounded-2xl border-2 bg-[color:var(--color-bg-elevated)] text-left transition-colors
+              border-[color:var(--color-border)] hover:border-[color:var(--color-accent)] hover:bg-[color:var(--color-accent-soft)]
+              ${config.cardPadding}
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-bg)]`}
+          >
+            {hasModifiers && (
+              <span
+                aria-label="Producto con opciones"
+                title="Tiene opciones configurables"
+                className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--color-accent)] text-[11px] font-bold leading-none text-[color:var(--color-accent-fg)] shadow-sm"
+              >
+                +
               </span>
-            </div>
-          )}
-          <span className="text-sm font-medium text-gray-100 line-clamp-2">{product.name}</span>
-          <span className="text-sm font-semibold text-amber-400">
-            ${product.price.toFixed(2)}
-          </span>
-        </button>
-      ))}
+            )}
+
+            <p
+              className={`pr-5 font-display font-semibold leading-tight text-[color:var(--color-fg)] line-clamp-3 ${config.titleSize}`}
+            >
+              {product.name}
+            </p>
+
+            <p
+              className={`mt-3 font-mono font-bold tabular-nums text-[color:var(--color-fg)] ${config.priceSize}`}
+            >
+              ${product.price.toFixed(2)}
+            </p>
+          </motion.button>
+        );
+      })}
     </div>
   );
 }

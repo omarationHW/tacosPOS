@@ -12,8 +12,16 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithPin: (email: string, pin: string) => Promise<void>;
+  changePin: (oldPin: string, newPin: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+}
+
+const PIN_PASSWORD_PREFIX = 'la-andaluza-pin-';
+
+function pinToPassword(pin: string) {
+  return `${PIN_PASSWORD_PREFIX}${pin}`;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -143,6 +151,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // onAuthStateChange will handle setting user + profile
   };
 
+  const signInWithPin = async (email: string, pin: string) => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pinToPassword(pin),
+    });
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  const changePin = async (oldPin: string, newPin: string) => {
+    const { error } = await supabase.rpc('change_own_pin', {
+      old_pin: oldPin,
+      new_pin: newPin,
+    });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     sessionStorage.removeItem('activeBusinessLineId');
     const { error } = await supabase.auth.signOut();
@@ -150,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ session, user, profile, loading, signIn, signInWithPin, changePin, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

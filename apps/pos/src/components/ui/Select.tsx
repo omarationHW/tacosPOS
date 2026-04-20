@@ -13,15 +13,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="space-y-1">
         {label && (
-          <label htmlFor={selectId} className="block text-sm font-medium text-gray-300">
+          <label htmlFor={selectId} className="block text-sm font-medium text-[color:var(--color-fg-muted)]">
             {label}
           </label>
         )}
         <select
           ref={ref}
           id={selectId}
-          className={`w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2.5 text-gray-100
-            transition-colors focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500
+          className={`w-full rounded-lg border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-2.5 text-[color:var(--color-fg)]
+            transition-colors focus:border-[color:var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--color-accent-ring)]
             disabled:cursor-not-allowed disabled:opacity-50
             ${error ? 'border-red-500' : ''} ${className}`}
           {...props}

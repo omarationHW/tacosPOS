@@ -12,11 +12,11 @@ interface SalesChartProps {
 export function SalesChart({
   data,
   formatValue = (v) => `$${v.toFixed(2)}`,
-  color = 'bg-amber-500',
+  color = 'bg-[color:var(--color-accent)]',
 }: SalesChartProps) {
   if (data.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-gray-500">Sin datos para el periodo seleccionado</p>
+      <p className="py-8 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin datos para el periodo seleccionado</p>
     );
   }
 
@@ -26,18 +26,18 @@ export function SalesChart({
     <div className="flex flex-col gap-2">
       {data.map((item, i) => (
         <div key={i} className="flex items-center gap-3">
-          <span className="w-20 shrink-0 text-right text-xs text-gray-400 truncate" title={item.label}>
+          <span className="w-20 shrink-0 text-right text-xs text-[color:var(--color-fg-muted)] truncate" title={item.label}>
             {item.label}
           </span>
           <div className="flex-1">
-            <div className="h-6 overflow-hidden rounded bg-gray-700">
+            <div className="h-6 overflow-hidden rounded bg-[color:var(--color-bg-inset)]">
               <div
                 className={`h-full rounded ${color} transition-all duration-300`}
                 style={{ width: `${(item.value / maxVal) * 100}%` }}
               />
             </div>
           </div>
-          <span className="w-24 shrink-0 text-right text-xs font-medium text-gray-300">
+          <span className="w-24 shrink-0 text-right text-xs font-medium text-[color:var(--color-fg-muted)]">
             {formatValue(item.value)}
           </span>
         </div>

@@ -28,13 +28,13 @@ export function ImageUpload({ value, onChange, className = '' }: ImageUploadProp
 
   return (
     <div className={`space-y-1 ${className}`}>
-      <label className="block text-sm font-medium text-gray-300">Imagen</label>
+      <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Imagen</label>
       {preview ? (
         <div className="relative inline-block">
           <img
             src={preview}
             alt="Preview"
-            className="h-32 w-32 rounded-lg border border-gray-600 object-cover"
+            className="h-32 w-32 rounded-lg border border-[color:var(--color-border-strong)] object-cover"
           />
           <button
             type="button"
@@ -48,7 +48,7 @@ export function ImageUpload({ value, onChange, className = '' }: ImageUploadProp
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-600 text-gray-400 transition-colors hover:border-amber-500 hover:text-amber-500"
+          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[color:var(--color-border-strong)] text-[color:var(--color-fg-muted)] transition-colors hover:border-[color:var(--color-accent)] hover:text-[color:var(--color-accent)]"
         >
           <Upload size={24} />
           <span className="text-xs">Subir imagen</span>

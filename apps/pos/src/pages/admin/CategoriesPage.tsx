@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FolderOpen, Plus, Pencil } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useCategories } from '@/hooks/useCategories';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
 import { useLineFilter } from '@/components/BusinessLineToggle';
@@ -119,8 +119,8 @@ export function CategoriesPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FolderOpen className="text-amber-500" size={28} />
-          <h1 className="text-2xl font-bold text-gray-100">Categorias</h1>
+          <FolderOpen className="text-[color:var(--color-accent)]" size={28} />
+          <h1 className="text-2xl font-bold text-[color:var(--color-fg)]">Categorias</h1>
         </div>
         <Button onClick={openCreate}>
           <Plus size={18} />
@@ -132,7 +132,7 @@ export function CategoriesPage() {
         {filteredCategories.map((cat) => (
           <div
             key={cat.id}
-            className="flex items-center gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4"
+            className="flex items-center gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4"
           >
             <div
               className="flex h-12 w-12 items-center justify-center rounded-lg text-xl font-bold text-white"
@@ -142,26 +142,26 @@ export function CategoriesPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-medium text-gray-100 truncate">{cat.name}</h3>
+                <h3 className="font-medium text-[color:var(--color-fg)] truncate">{cat.name}</h3>
                 <Badge variant={cat.is_active ? 'success' : 'danger'}>
                   {cat.is_active ? 'Activo' : 'Inactivo'}
                 </Badge>
               </div>
               {cat.description && (
-                <p className="text-sm text-gray-400 truncate">{cat.description}</p>
+                <p className="text-sm text-[color:var(--color-fg-muted)] truncate">{cat.description}</p>
               )}
             </div>
             <div className="flex gap-1">
               <button
                 onClick={() => handleToggle(cat)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-fg)]"
                 title={cat.is_active ? 'Desactivar' : 'Activar'}
               >
-                <div className={`h-4 w-4 rounded-full border-2 ${cat.is_active ? 'border-green-500 bg-green-500' : 'border-gray-500'}`} />
+                <div className={`h-4 w-4 rounded-full border-2 ${cat.is_active ? 'border-green-500 bg-green-500' : 'border-[color:var(--color-border-strong)]'}`} />
               </button>
               <button
                 onClick={() => openEdit(cat)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-700 hover:text-amber-500"
+                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
               >
                 <Pencil size={16} />
               </button>
@@ -171,7 +171,7 @@ export function CategoriesPage() {
       </div>
 
       {filteredCategories.length === 0 && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-8 text-center text-gray-500">
+        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 text-center text-[color:var(--color-fg-subtle)]">
           No hay categorias. Crea la primera.
         </div>
       )}
@@ -196,16 +196,17 @@ export function CategoriesPage() {
             placeholder="Descripcion opcional"
           />
           <Input
-            label="Orden"
+            label="Posición en el menú"
             type="number"
             value={form.sort_order}
             onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
             min={0}
+            helper="Define el orden de aparición en el POS. Menor número = aparece primero."
           />
 
           {/* Business line selector */}
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-300">Linea de negocio</label>
+            <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Linea de negocio</label>
             <div className="flex gap-2">
               {availableBusinessLines.map((bl) => (
                 <button
@@ -214,8 +215,8 @@ export function CategoriesPage() {
                   onClick={() => setForm({ ...form, business_line_id: bl.id })}
                   className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                     form.business_line_id === bl.id
-                      ? 'border-amber-500 bg-amber-500/20 text-amber-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                      ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]'
+                      : 'border-[color:var(--color-border-strong)] text-[color:var(--color-fg-muted)] hover:border-[color:var(--color-border-strong)]'
                   }`}
                 >
                   {bl.name}
@@ -225,7 +226,7 @@ export function CategoriesPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-300">Icono</label>
+            <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Icono</label>
             <div className="flex flex-wrap gap-2">
               {ICON_OPTIONS.map((icon) => (
                 <button
@@ -234,8 +235,8 @@ export function CategoriesPage() {
                   onClick={() => setForm({ ...form, icon })}
                   className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
                     form.icon === icon
-                      ? 'border-amber-500 bg-amber-500/20 text-amber-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                      ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]'
+                      : 'border-[color:var(--color-border-strong)] text-[color:var(--color-fg-muted)] hover:border-[color:var(--color-border-strong)]'
                   }`}
                 >
                   {icon}
@@ -245,15 +246,15 @@ export function CategoriesPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-300">Color</label>
+            <label className="block text-sm font-medium text-[color:var(--color-fg-muted)]">Color</label>
             <div className="flex gap-2">
               {COLOR_OPTIONS.map((color) => (
                 <button
                   key={color}
                   type="button"
                   onClick={() => setForm({ ...form, color })}
-                  className={`h-8 w-8 rounded-full border-2 transition-transform ${
-                    form.color === color ? 'scale-110 border-white' : 'border-transparent'
+                  className={`h-11 w-11 cursor-pointer rounded-full border-2 transition-transform ${
+                    form.color === color ? 'scale-110 border-[color:var(--color-fg)]' : 'border-transparent'
                   }`}
                   style={{ backgroundColor: color }}
                 />

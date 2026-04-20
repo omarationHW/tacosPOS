@@ -12,11 +12,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'logo.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Taqueria La Andaluza',
+        name: 'Taquería La Andaluza',
         short_name: 'La Andaluza',
-        description: 'Sistema de punto de venta para taquería',
-        theme_color: '#f59e0b',
-        background_color: '#111827',
+        description: 'Sistema de punto de venta',
+        theme_color: '#000000',
+        background_color: '#ffffff',
         display: 'standalone',
         orientation: 'landscape',
         icons: [
