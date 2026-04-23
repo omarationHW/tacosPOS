@@ -22,6 +22,39 @@ function getItemUnitPrice(item: CartItem): number {
   return item.price + item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
 }
 
+/**
+ * Find a customer by case-insensitive exact name, or create one.
+ * Returns the customer id, or null if the name is blank.
+ * Non-fatal: on error returns null so the order flow isn't blocked.
+ */
+async function upsertCustomerByName(customerName: string): Promise<string | null> {
+  const name = customerName.trim();
+  if (!name) return null;
+
+  try {
+    // ilike with no wildcards is a case-insensitive exact match.
+    const { data: existing } = await supabase
+      .from('customers')
+      .select('id')
+      .ilike('name', name)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) return existing.id;
+
+    const { data: created, error } = await supabase
+      .from('customers')
+      .insert({ name })
+      .select('id')
+      .single();
+
+    if (error || !created) return null;
+    return created.id;
+  } catch {
+    return null;
+  }
+}
+
 export function useOrders() {
   async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items en el pedido');
@@ -50,12 +83,15 @@ export function useOrders() {
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 
+    const customerId = await upsertCustomerByName(customerName);
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         created_by: createdBy,
         table_id: tableId || null,
         customer_name: customerName,
+        customer_id: customerId,
         business_line_id: businessLineId,
         order_type: orderType || 'dine_in',
         status: 'open',

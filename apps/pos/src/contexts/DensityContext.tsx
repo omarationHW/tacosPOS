@@ -13,21 +13,21 @@ interface DensityConfig {
 
 const CONFIG: Record<Density, DensityConfig> = {
   compact: {
-    gridCols: 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
+    gridCols: 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6',
     cardPadding: 'p-3',
     cardGap: 'gap-2',
     titleSize: 'text-xs lg:text-sm',
     priceSize: 'text-base',
   },
   normal: {
-    gridCols: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+    gridCols: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5',
     cardPadding: 'p-4',
     cardGap: 'gap-3',
     titleSize: 'text-sm lg:text-base',
     priceSize: 'text-lg',
   },
   comfortable: {
-    gridCols: 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    gridCols: 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4',
     cardPadding: 'p-5',
     cardGap: 'gap-4',
     titleSize: 'text-base lg:text-lg',

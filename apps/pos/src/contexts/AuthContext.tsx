@@ -177,11 +177,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const changePin = async (oldPin: string, newPin: string) => {
-    const { error } = await supabase.rpc('change_own_pin', {
-      old_pin: oldPin,
-      new_pin: newPin,
+    const { data, error } = await supabase.functions.invoke('change-pin', {
+      body: { old_pin: oldPin, new_pin: newPin },
     });
-    if (error) throw error;
+    if (error) {
+      // Supabase wraps non-2xx responses; the body is in context.response.
+      let message = 'No se pudo cambiar el PIN';
+      try {
+        const anyErr = error as { context?: { response?: Response } };
+        const resp = anyErr.context?.response;
+        if (resp) {
+          const cloned = resp.clone();
+          const parsed = await cloned.json();
+          if (parsed?.error) message = parsed.error;
+        } else if (error instanceof Error && error.message) {
+          message = error.message;
+        }
+      } catch {
+        // fall through with default
+      }
+      throw new Error(message);
+    }
+    if (!data?.ok) {
+      throw new Error(data?.error ?? 'No se pudo cambiar el PIN');
+    }
   };
 
   const signOut = async () => {

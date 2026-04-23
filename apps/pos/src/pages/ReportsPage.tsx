@@ -7,6 +7,7 @@ import {
   type PaymentMethodSales,
   type HourlySales,
   type CashCutSummary,
+  type StaffSales,
 } from '@/hooks/useReports';
 import { useLineFilter } from '@/components/BusinessLineToggle';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
@@ -17,7 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { exportCsv } from '@/lib/exportCsv';
 import { exportPdf } from '@/lib/exportPdf';
 
-type ReportTab = 'sales' | 'products' | 'payments' | 'hours' | 'cuts';
+type ReportTab = 'sales' | 'products' | 'payments' | 'hours' | 'staff' | 'cuts';
 
 interface LineSalesData {
   lineName: string;
@@ -29,6 +30,7 @@ interface LineSalesData {
   topProducts: ProductSales[];
   paymentMethods: PaymentMethodSales[];
   hourlySales: HourlySales[];
+  staffSales: StaffSales[];
   cashCuts: CashCutSummary[];
 }
 
@@ -49,6 +51,7 @@ export function ReportsPage() {
   const {
     getSalesByPeriod, getTopProducts, getAverageTicket,
     getSalesByPaymentMethod, getSalesByHour, getCashCutHistory,
+    getSalesByStaff,
   } = useReports();
   const resolvedLineId = useLineFilter();
   const { availableBusinessLines, isAllLines } = useBusinessLine();
@@ -64,6 +67,7 @@ export function ReportsPage() {
   const [avgTicket, setAvgTicket] = useState(0);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSales[]>([]);
   const [hourlySales, setHourlySales] = useState<HourlySales[]>([]);
+  const [staffSales, setStaffSales] = useState<StaffSales[]>([]);
   const [cashCuts, setCashCuts] = useState<CashCutSummary[]>([]);
 
   // Per-line data (when "Todas")
@@ -85,12 +89,13 @@ export function ReportsPage() {
       // Fetch per-line data
       const lineResults = await Promise.all(
         availableBusinessLines.map(async (bl) => {
-          const [sales, avg, prods, methods, hours, cuts] = await Promise.all([
+          const [sales, avg, prods, methods, hours, staff, cuts] = await Promise.all([
             tab === 'sales' ? getSalesByPeriod(start, end, bl.id) : Promise.resolve([]),
             tab === 'sales' ? getAverageTicket(start, end, bl.id) : Promise.resolve(0),
             tab === 'products' ? getTopProducts(start, end, bl.id) : Promise.resolve([]),
             tab === 'payments' ? getSalesByPaymentMethod(start, end, bl.id) : Promise.resolve([]),
             tab === 'hours' ? getSalesByHour(start, end, bl.id) : Promise.resolve([]),
+            tab === 'staff' ? getSalesByStaff(start, end, bl.id) : Promise.resolve([]),
             tab === 'cuts' ? getCashCutHistory(bl.id) : Promise.resolve([]),
           ]);
           return {
@@ -103,18 +108,21 @@ export function ReportsPage() {
             topProducts: prods,
             paymentMethods: methods,
             hourlySales: hours,
+            staffSales: staff,
             cashCuts: cuts,
           } as LineSalesData;
         }),
       );
       setPerLineData(lineResults);
 
-      // Also set combined data for totals
+      // Combined data for totals / top-level exports
       if (tab === 'sales') {
         const allSales = await getSalesByPeriod(start, end, null);
         const allAvg = await getAverageTicket(start, end, null);
         setDailySales(allSales);
         setAvgTicket(allAvg);
+      } else if (tab === 'staff') {
+        setStaffSales(await getSalesByStaff(start, end, null));
       }
     } else {
       setPerLineData([]);
@@ -131,13 +139,15 @@ export function ReportsPage() {
         setPaymentMethods(await getSalesByPaymentMethod(start, end, resolvedLineId));
       } else if (tab === 'hours') {
         setHourlySales(await getSalesByHour(start, end, resolvedLineId));
+      } else if (tab === 'staff') {
+        setStaffSales(await getSalesByStaff(start, end, resolvedLineId));
       } else if (tab === 'cuts') {
         setCashCuts(await getCashCutHistory(resolvedLineId));
       }
     }
 
     setLoading(false);
-  }, [tab, startDate, endDate, resolvedLineId, isAllLines, availableBusinessLines, getSalesByPeriod, getAverageTicket, getTopProducts, getSalesByPaymentMethod, getSalesByHour, getCashCutHistory]);
+  }, [tab, startDate, endDate, resolvedLineId, isAllLines, availableBusinessLines, getSalesByPeriod, getAverageTicket, getTopProducts, getSalesByPaymentMethod, getSalesByHour, getCashCutHistory, getSalesByStaff]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -146,6 +156,7 @@ export function ReportsPage() {
     { key: 'products', label: 'Productos' },
     { key: 'payments', label: 'Met. de Pago' },
     { key: 'hours', label: 'Horas Pico' },
+    { key: 'staff', label: 'Por Personal' },
     { key: 'cuts', label: 'Cortes de Caja' },
   ];
 
@@ -162,57 +173,138 @@ export function ReportsPage() {
   const exportSalesCsv = () =>
     exportCsv('ventas-por-dia', ['Fecha', 'Total', 'Efectivo', 'Tarjeta', 'Transferencia', 'Ordenes'],
       dailySales.map((d) => [d.date, d.total, d.cash, d.card, d.transfer, d.orderCount]));
+  const salesRowsFor = (data: DailySales[]) =>
+    data.map((d) => [d.date, `$${d.total.toFixed(2)}`, `$${d.cash.toFixed(2)}`, `$${d.card.toFixed(2)}`, `$${d.transfer.toFixed(2)}`, d.orderCount] as (string | number)[]);
+  const salesSummaryFor = (data: DailySales[], avg: number) => {
+    const total = data.reduce((s, d) => s + d.total, 0);
+    const cash = data.reduce((s, d) => s + d.cash, 0);
+    const card = data.reduce((s, d) => s + d.card, 0);
+    const transfer = data.reduce((s, d) => s + d.transfer, 0);
+    const orders = data.reduce((s, d) => s + d.orderCount, 0);
+    return [
+      { label: 'Total Ventas', value: `$${total.toFixed(2)}` },
+      { label: 'Efectivo', value: `$${cash.toFixed(2)}` },
+      { label: 'Tarjeta', value: `$${card.toFixed(2)}` },
+      { label: 'Transferencia', value: `$${transfer.toFixed(2)}` },
+      { label: 'Total Ordenes', value: String(orders) },
+      { label: 'Ticket Promedio', value: `$${avg.toFixed(2)}` },
+    ];
+  };
   const exportSalesPdf = () =>
     exportPdf({
       filename: 'ventas-por-dia', title: 'Reporte de Ventas por Dia', period: periodStr,
       headers: ['Fecha', 'Total ($)', 'Efectivo ($)', 'Tarjeta ($)', 'Transf. ($)', 'Ordenes'],
-      rows: dailySales.map((d) => [d.date, `$${d.total.toFixed(2)}`, `$${d.cash.toFixed(2)}`, `$${d.card.toFixed(2)}`, `$${d.transfer.toFixed(2)}`, d.orderCount]),
-      summary: [
-        { label: 'Total Ventas', value: `$${totalSales.toFixed(2)}` },
-        { label: 'Efectivo', value: `$${totalCash.toFixed(2)}` },
-        { label: 'Tarjeta', value: `$${totalCard.toFixed(2)}` },
-        { label: 'Transferencia', value: `$${totalTransfer.toFixed(2)}` },
-        { label: 'Total Ordenes', value: String(totalOrders) },
-        { label: 'Ticket Promedio', value: `$${avgTicket.toFixed(2)}` },
-      ],
+      rows: salesRowsFor(dailySales),
+      summary: salesSummaryFor(dailySales, avgTicket),
+      sections: showPerLine
+        ? perLineData.map((ld) => ({
+            title: ld.lineName,
+            headers: ['Fecha', 'Total ($)', 'Efectivo ($)', 'Tarjeta ($)', 'Transf. ($)', 'Ordenes'],
+            rows: salesRowsFor(ld.dailySales),
+            summary: salesSummaryFor(ld.dailySales, ld.avgTicket),
+          }))
+        : undefined,
     });
   const exportProductsCsv = () =>
     exportCsv('productos-mas-vendidos', ['Producto', 'Cantidad', 'Ingresos'], topProducts.map((p) => [p.name, p.totalQty, p.totalRevenue]));
+  const productsRowsFor = (prods: ProductSales[]) =>
+    prods.map((p) => [p.name, p.totalQty, `$${p.totalRevenue.toFixed(2)}`] as (string | number)[]);
   const exportProductsPdf = () =>
     exportPdf({
       filename: 'productos-mas-vendidos', title: 'Productos Mas Vendidos', period: periodStr,
       headers: ['Producto', 'Cantidad', 'Ingresos ($)'],
-      rows: topProducts.map((p) => [p.name, p.totalQty, `$${p.totalRevenue.toFixed(2)}`]),
+      rows: productsRowsFor(topProducts),
+      sections: showPerLine
+        ? perLineData.map((ld) => ({
+            title: ld.lineName,
+            headers: ['Producto', 'Cantidad', 'Ingresos ($)'],
+            rows: productsRowsFor(ld.topProducts),
+          }))
+        : undefined,
     });
   const exportPaymentsCsv = () =>
     exportCsv('ventas-por-metodo', ['Metodo', 'Total', 'Transacciones'], paymentMethods.map((p) => [p.method, p.total, p.count]));
+  const paymentsRowsFor = (data: PaymentMethodSales[]) =>
+    data.map((p) => [p.method, `$${p.total.toFixed(2)}`, p.count] as (string | number)[]);
   const exportPaymentsPdf = () =>
     exportPdf({
       filename: 'ventas-por-metodo', title: 'Ventas por Metodo de Pago', period: periodStr,
       headers: ['Metodo', 'Total ($)', 'Transacciones'],
-      rows: paymentMethods.map((p) => [p.method, `$${p.total.toFixed(2)}`, p.count]),
+      rows: paymentsRowsFor(paymentMethods),
+      sections: showPerLine
+        ? perLineData.map((ld) => ({
+            title: ld.lineName,
+            headers: ['Metodo', 'Total ($)', 'Transacciones'],
+            rows: paymentsRowsFor(ld.paymentMethods),
+          }))
+        : undefined,
     });
   const exportHoursCsv = () =>
     exportCsv('ventas-por-hora', ['Hora', 'Total', 'Ordenes'], hourlySales.map((h) => [`${h.hour}:00`, h.total, h.count]));
+  const hoursRowsFor = (data: HourlySales[]) =>
+    data.map((h) => [`${String(h.hour).padStart(2, '0')}:00`, `$${h.total.toFixed(2)}`, h.count] as (string | number)[]);
   const exportHoursPdf = () =>
     exportPdf({
       filename: 'ventas-por-hora', title: 'Ventas por Hora', period: periodStr,
       headers: ['Hora', 'Total ($)', 'Ordenes'],
-      rows: hourlySales.map((h) => [`${String(h.hour).padStart(2, '0')}:00`, `$${h.total.toFixed(2)}`, h.count]),
+      rows: hoursRowsFor(hourlySales),
+      sections: showPerLine
+        ? perLineData.map((ld) => ({
+            title: ld.lineName,
+            headers: ['Hora', 'Total ($)', 'Ordenes'],
+            rows: hoursRowsFor(ld.hourlySales),
+          }))
+        : undefined,
     });
+  const roleLabel = (r: string) => {
+    switch (r) {
+      case 'admin': return 'Admin';
+      case 'cashier': return 'Cajero';
+      case 'waiter': return 'Mesero';
+      case 'kitchen': return 'Cocina';
+      default: return r || '—';
+    }
+  };
+
+  const exportStaffCsv = () =>
+    exportCsv('ventas-por-personal', ['Nombre', 'Rol', 'Ordenes', 'Total', 'Ticket Prom.'],
+      staffSales.map((s) => [s.name, roleLabel(s.role), s.orderCount, s.totalSales, s.avgTicket]));
+  const exportStaffPdf = () =>
+    exportPdf({
+      filename: 'ventas-por-personal', title: 'Ventas por Personal', period: periodStr,
+      headers: ['Nombre', 'Rol', 'Ordenes', 'Total ($)', 'Ticket Prom. ($)'],
+      rows: staffSales.map((s) => [s.name, roleLabel(s.role), s.orderCount, `$${s.totalSales.toFixed(2)}`, `$${s.avgTicket.toFixed(2)}`]),
+      sections: showPerLine
+        ? perLineData.map((ld) => ({
+            title: ld.lineName,
+            headers: ['Nombre', 'Rol', 'Ordenes', 'Total ($)', 'Ticket Prom. ($)'],
+            rows: ld.staffSales.map((s) => [s.name, roleLabel(s.role), s.orderCount, `$${s.totalSales.toFixed(2)}`, `$${s.avgTicket.toFixed(2)}`]),
+          }))
+        : undefined,
+    });
+
   const exportCutsCsv = () =>
     exportCsv('cortes-de-caja', ['Apertura', 'Cierre', 'Monto Inicial', 'Esperado', 'Real', 'Diferencia', 'Operador'],
       cashCuts.map((c) => [c.openedAt, c.closedAt, c.openingAmount, c.expected, c.closingAmount, c.difference, c.openerName]));
+  const cutsRowsFor = (data: CashCutSummary[]) =>
+    data.map((c) => [
+      new Date(c.openedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }),
+      new Date(c.closedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }),
+      `$${c.openingAmount.toFixed(2)}`, `$${c.expected.toFixed(2)}`,
+      `$${c.closingAmount.toFixed(2)}`, `$${c.difference.toFixed(2)}`, c.openerName,
+    ] as (string | number)[]);
   const exportCutsPdf = () =>
     exportPdf({
       filename: 'cortes-de-caja', title: 'Historial de Cortes de Caja',
       headers: ['Apertura', 'Cierre', 'Inicio ($)', 'Esperado ($)', 'Real ($)', 'Diferencia ($)', 'Operador'],
-      rows: cashCuts.map((c) => [
-        new Date(c.openedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }),
-        new Date(c.closedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }),
-        `$${c.openingAmount.toFixed(2)}`, `$${c.expected.toFixed(2)}`,
-        `$${c.closingAmount.toFixed(2)}`, `$${c.difference.toFixed(2)}`, c.openerName,
-      ]),
+      rows: cutsRowsFor(cashCuts),
+      sections: showPerLine
+        ? perLineData.map((ld) => ({
+            title: ld.lineName,
+            headers: ['Apertura', 'Cierre', 'Inicio ($)', 'Esperado ($)', 'Real ($)', 'Diferencia ($)', 'Operador'],
+            rows: cutsRowsFor(ld.cashCuts),
+          }))
+        : undefined,
     });
 
   return (
@@ -366,26 +458,24 @@ export function ReportsPage() {
                 <div className="flex flex-col gap-6">
                   {perLineData.map((ld) => (
                     <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
-                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Mas Vendidos</h3>
-                      <SalesChart
-                        data={ld.topProducts.map((p) => ({ label: p.name, value: p.totalQty }))}
-                        formatValue={(v) => `${v} uds`}
-                        color="bg-green-500"
-                      />
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Más Vendidos</h3>
+                      <TopProductsList products={ld.topProducts} />
                     </div>
                   ))}
+                  <div className="flex items-center justify-between rounded-xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-4 py-3">
+                    <span className="text-sm font-semibold text-[color:var(--color-fg)]">
+                      Exportar consolidado + desglose por línea
+                    </span>
+                    <ExportButtons onCsv={exportProductsCsv} onPdf={exportProductsPdf} />
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Productos Mas Vendidos</h3>
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Productos Más Vendidos</h3>
                     <ExportButtons onCsv={exportProductsCsv} onPdf={exportProductsPdf} />
                   </div>
-                  <SalesChart
-                    data={topProducts.map((p) => ({ label: p.name, value: p.totalQty }))}
-                    formatValue={(v) => `${v} uds`}
-                    color="bg-green-500"
-                  />
+                  <TopProductsList products={topProducts} />
                 </div>
               )}
             </div>
@@ -395,49 +485,22 @@ export function ReportsPage() {
           {tab === 'payments' && (
             <div>
               {showPerLine ? (
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="flex flex-col gap-6">
                   {perLineData.map((ld) => (
                     <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
-                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName}</h3>
-                      {ld.paymentMethods.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin datos</p>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          {ld.paymentMethods.map((pm) => (
-                            <div key={pm.method} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg)] px-4 py-2.5">
-                              <div>
-                                <div className="text-sm font-medium text-[color:var(--color-fg)]">{pm.method}</div>
-                                <div className="text-xs text-[color:var(--color-fg-subtle)]">{pm.count} transacciones</div>
-                              </div>
-                              <div className="text-lg font-bold text-[color:var(--color-accent)]">${pm.total.toFixed(2)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Métodos de Pago</h3>
+                      <PaymentsList methods={ld.paymentMethods} />
                     </div>
                   ))}
+                  <PerLineExportRow onCsv={exportPaymentsCsv} onPdf={exportPaymentsPdf} />
                 </div>
               ) : (
                 <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Metodo de Pago</h3>
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Método de Pago</h3>
                     <ExportButtons onCsv={exportPaymentsCsv} onPdf={exportPaymentsPdf} />
                   </div>
-                  {paymentMethods.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin datos</p>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {paymentMethods.map((pm) => (
-                        <div key={pm.method} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg)] px-4 py-3">
-                          <div>
-                            <div className="text-sm font-medium text-[color:var(--color-fg)]">{pm.method}</div>
-                            <div className="text-xs text-[color:var(--color-fg-subtle)]">{pm.count} transacciones</div>
-                          </div>
-                          <div className="text-lg font-bold text-[color:var(--color-accent)]">${pm.total.toFixed(2)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <PaymentsList methods={paymentMethods} />
                 </div>
               )}
             </div>
@@ -451,14 +514,10 @@ export function ReportsPage() {
                   {perLineData.map((ld) => (
                     <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                       <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Horas Pico</h3>
-                      <SalesChart
-                        data={ld.hourlySales.map((h) => ({
-                          label: `${String(h.hour).padStart(2, '0')}:00`, value: h.total,
-                        }))}
-                        color="bg-blue-500"
-                      />
+                      <HoursList data={ld.hourlySales} />
                     </div>
                   ))}
+                  <PerLineExportRow onCsv={exportHoursCsv} onPdf={exportHoursPdf} />
                 </div>
               ) : (
                 <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
@@ -466,12 +525,32 @@ export function ReportsPage() {
                     <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Hora</h3>
                     <ExportButtons onCsv={exportHoursCsv} onPdf={exportHoursPdf} />
                   </div>
-                  <SalesChart
-                    data={hourlySales.map((h) => ({
-                      label: `${String(h.hour).padStart(2, '0')}:00`, value: h.total,
-                    }))}
-                    color="bg-blue-500"
-                  />
+                  <HoursList data={hourlySales} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========== STAFF ========== */}
+          {tab === 'staff' && (
+            <div>
+              {showPerLine ? (
+                <div className="flex flex-col gap-6">
+                  {perLineData.map((ld) => (
+                    <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                      <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Por Personal</h3>
+                      <StaffList data={ld.staffSales} roleLabel={roleLabel} />
+                    </div>
+                  ))}
+                  <PerLineExportRow onCsv={exportStaffCsv} onPdf={exportStaffPdf} />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Ventas por Personal</h3>
+                    <ExportButtons onCsv={exportStaffCsv} onPdf={exportStaffPdf} />
+                  </div>
+                  <StaffList data={staffSales} roleLabel={roleLabel} />
                 </div>
               )}
             </div>
@@ -483,39 +562,20 @@ export function ReportsPage() {
               {showPerLine ? (
                 <div className="flex flex-col gap-6">
                   {perLineData.map((ld) => (
-                    <div key={ld.lineId}>
+                    <div key={ld.lineId} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                       <h3 className="mb-3 text-sm font-bold text-[color:var(--color-fg)]">{ld.lineName} — Cortes</h3>
-                      {ld.cashCuts.length === 0 ? (
-                        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-8 text-center">
-                          <p className="text-[color:var(--color-fg-subtle)]">No hay cortes</p>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-3">
-                          {ld.cashCuts.map((cut) => (
-                            <CutCard key={cut.id} cut={cut} />
-                          ))}
-                        </div>
-                      )}
+                      <CutsList cuts={ld.cashCuts} />
                     </div>
                   ))}
+                  <PerLineExportRow onCsv={exportCutsCsv} onPdf={exportCutsPdf} />
                 </div>
               ) : (
-                <div>
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-[color:var(--color-fg)]">Historial de Cortes</h3>
                     <ExportButtons onCsv={exportCutsCsv} onPdf={exportCutsPdf} />
                   </div>
-                  {cashCuts.length === 0 ? (
-                    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-12 text-center">
-                      <p className="text-[color:var(--color-fg-subtle)]">No hay cortes registrados</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {cashCuts.map((cut) => (
-                        <CutCard key={cut.id} cut={cut} />
-                      ))}
-                    </div>
-                  )}
+                  <CutsList cuts={cashCuts} />
                 </div>
               )}
             </div>
@@ -526,41 +586,273 @@ export function ReportsPage() {
   );
 }
 
-function CutCard({ cut }: { cut: CashCutSummary }) {
+function TopProductsList({ products }: { products: ProductSales[] }) {
+  if (products.length === 0) return <EmptyState message="Sin ventas para el periodo seleccionado" />;
+  const maxQty = Math.max(...products.map((p) => p.totalQty));
+  const totalQty = products.reduce((s, p) => s + p.totalQty, 0);
   return (
-    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm text-[color:var(--color-fg-muted)]">
-          {new Date(cut.openedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </span>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium
-          ${cut.difference === 0
-            ? 'bg-green-500/20 text-green-400'
-            : cut.difference > 0
-              ? 'bg-blue-500/20 text-blue-400'
-              : 'bg-red-500/20 text-red-400'
-          }`}
+    <ol className="flex flex-col gap-2">
+      {products.map((p, i) => {
+        const pct = (p.totalQty / maxQty) * 100;
+        const share = totalQty === 0 ? 0 : (p.totalQty / totalQty) * 100;
+        return (
+          <RankedCard
+            key={p.name}
+            rank={i + 1}
+            isTop={i === 0}
+            title={p.name}
+            right={
+              <>
+                <span className="text-base font-bold text-[color:var(--color-fg)]">
+                  {p.totalQty} <span className="text-xs font-normal text-[color:var(--color-fg-subtle)]">uds</span>
+                </span>
+                <span className="text-xs text-[color:var(--color-accent)]">
+                  ${p.totalRevenue.toFixed(2)}
+                </span>
+                <span className="w-12 text-right text-xs text-[color:var(--color-fg-subtle)]">
+                  {share.toFixed(1)}%
+                </span>
+              </>
+            }
+            pct={pct}
+          />
+        );
+      })}
+    </ol>
+  );
+}
+
+function PerLineExportRow({ onCsv, onPdf }: { onCsv: () => void; onPdf: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-4 py-3">
+      <span className="text-sm font-semibold text-[color:var(--color-fg)]">
+        Exportar consolidado + desglose por línea
+      </span>
+      <ExportButtons onCsv={onCsv} onPdf={onPdf} />
+    </div>
+  );
+}
+
+function RankedCard({
+  rank,
+  isTop,
+  title,
+  subtitle,
+  right,
+  pct,
+}: {
+  rank: number;
+  isTop: boolean;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  right: React.ReactNode;
+  pct: number;
+}) {
+  return (
+    <li className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+      <div className="flex items-start gap-3">
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold tabular-nums
+            ${isTop
+              ? 'bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]'
+              : 'bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg-muted)]'}`}
         >
-          {cut.difference === 0 ? 'Cuadra' : `${cut.difference > 0 ? '+' : ''}$${cut.difference.toFixed(2)}`}
+          {rank}
         </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0">
+              <div className="break-words text-sm font-semibold text-[color:var(--color-fg)]">{title}</div>
+              {subtitle && (
+                <div className="mt-0.5 text-xs text-[color:var(--color-fg-subtle)]">{subtitle}</div>
+              )}
+            </div>
+            <div className="flex items-baseline gap-3 font-mono tabular-nums">{right}</div>
+          </div>
+          <div className="mt-2 h-1.5 rounded-full bg-[color:var(--color-bg-inset)]">
+            <div
+              className="h-full rounded-full bg-[color:var(--color-accent)]"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
       </div>
-      <div className="grid grid-cols-4 gap-2 text-center">
-        <div>
-          <div className="text-xs text-[color:var(--color-fg-subtle)]">Apertura</div>
-          <div className="text-sm font-medium text-[color:var(--color-fg)]">${cut.openingAmount.toFixed(2)}</div>
+    </li>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <p className="py-8 text-center text-sm text-[color:var(--color-fg-subtle)]">{message}</p>
+  );
+}
+
+function PaymentsList({ methods }: { methods: PaymentMethodSales[] }) {
+  if (methods.length === 0) return <EmptyState message="Sin ventas para el periodo seleccionado" />;
+  const maxTotal = Math.max(...methods.map((m) => m.total));
+  const grandTotal = methods.reduce((s, m) => s + m.total, 0);
+  return (
+    <ol className="flex flex-col gap-2">
+      {methods.map((pm, i) => {
+        const pct = maxTotal === 0 ? 0 : (pm.total / maxTotal) * 100;
+        const share = grandTotal === 0 ? 0 : (pm.total / grandTotal) * 100;
+        return (
+          <RankedCard
+            key={pm.method}
+            rank={i + 1}
+            isTop={i === 0}
+            title={pm.method}
+            subtitle={`${pm.count} transacciones`}
+            right={
+              <>
+                <span className="text-base font-bold text-[color:var(--color-accent)]">
+                  ${pm.total.toFixed(2)}
+                </span>
+                <span className="w-12 text-right text-xs text-[color:var(--color-fg-subtle)]">
+                  {share.toFixed(1)}%
+                </span>
+              </>
+            }
+            pct={pct}
+          />
+        );
+      })}
+    </ol>
+  );
+}
+
+function StaffList({
+  data,
+  roleLabel,
+}: {
+  data: StaffSales[];
+  roleLabel: (r: string) => string;
+}) {
+  if (data.length === 0) return <EmptyState message="Sin ventas asignadas a personal en el rango seleccionado" />;
+  const maxSales = Math.max(...data.map((s) => s.totalSales));
+  const grandTotal = data.reduce((s, x) => s + x.totalSales, 0);
+  return (
+    <ol className="flex flex-col gap-2">
+      {data.map((s, i) => {
+        const pct = maxSales === 0 ? 0 : (s.totalSales / maxSales) * 100;
+        const share = grandTotal === 0 ? 0 : (s.totalSales / grandTotal) * 100;
+        return (
+          <RankedCard
+            key={s.profileId}
+            rank={i + 1}
+            isTop={i === 0}
+            title={s.name}
+            subtitle={`${roleLabel(s.role)} · ${s.orderCount} órdenes · Ticket prom. $${s.avgTicket.toFixed(2)}`}
+            right={
+              <>
+                <span className="text-base font-bold text-[color:var(--color-accent)]">
+                  ${s.totalSales.toFixed(2)}
+                </span>
+                <span className="w-12 text-right text-xs text-[color:var(--color-fg-subtle)]">
+                  {share.toFixed(1)}%
+                </span>
+              </>
+            }
+            pct={pct}
+          />
+        );
+      })}
+    </ol>
+  );
+}
+
+function HoursList({ data }: { data: HourlySales[] }) {
+  if (data.length === 0) return <EmptyState message="Sin ventas para el periodo seleccionado" />;
+  const maxTotal = Math.max(...data.map((h) => h.total));
+  return (
+    <div className="flex flex-col gap-1.5">
+      {data.map((h) => {
+        const pct = maxTotal === 0 ? 0 : (h.total / maxTotal) * 100;
+        return (
+          <div key={h.hour} className="flex items-center gap-3">
+            <span className="w-14 shrink-0 font-mono text-xs font-semibold tabular-nums text-[color:var(--color-fg-muted)]">
+              {String(h.hour).padStart(2, '0')}:00
+            </span>
+            <div className="flex-1">
+              <div className="h-6 overflow-hidden rounded bg-[color:var(--color-bg-inset)]">
+                <div
+                  className="h-full rounded bg-[color:var(--color-accent)] transition-all duration-300"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+            <span className="w-20 shrink-0 text-right font-mono text-xs font-semibold tabular-nums text-[color:var(--color-fg)]">
+              ${h.total.toFixed(2)}
+            </span>
+            <span className="w-14 shrink-0 text-right text-xs text-[color:var(--color-fg-subtle)]">
+              {h.count} ord.
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CutsList({ cuts }: { cuts: CashCutSummary[] }) {
+  if (cuts.length === 0) return <EmptyState message="No hay cortes registrados" />;
+  return (
+    <ol className="flex flex-col gap-2">
+      {cuts.map((cut, i) => (
+        <CutRow key={cut.id} cut={cut} rank={i + 1} />
+      ))}
+    </ol>
+  );
+}
+
+function CutRow({ cut, rank }: { cut: CashCutSummary; rank: number }) {
+  const balanced = cut.difference === 0;
+  const positive = cut.difference > 0;
+  const diffClass = balanced
+    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+    : positive
+      ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+      : 'bg-red-500/15 text-red-600 dark:text-red-400';
+  return (
+    <li className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+      <div className="flex items-start gap-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-inset)] font-mono text-xs font-bold tabular-nums text-[color:var(--color-fg-muted)]">
+          {rank}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-[color:var(--color-fg)]">
+                {new Date(cut.openedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </div>
+              <div className="mt-0.5 text-xs text-[color:var(--color-fg-subtle)]">
+                {cut.openerName || '—'} · {new Date(cut.openedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                {' → '}
+                {new Date(cut.closedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${diffClass}`}>
+              {balanced ? 'Cuadra' : `${positive ? '+' : ''}$${cut.difference.toFixed(2)}`}
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-center sm:grid-cols-4">
+            <CutMetric label="Apertura" value={`$${cut.openingAmount.toFixed(2)}`} />
+            <CutMetric label="Esperado" value={`$${cut.expected.toFixed(2)}`} />
+            <CutMetric label="Real" value={`$${cut.closingAmount.toFixed(2)}`} accent />
+            <CutMetric label="Operador" value={cut.openerName || '—'} />
+          </div>
         </div>
-        <div>
-          <div className="text-xs text-[color:var(--color-fg-subtle)]">Esperado</div>
-          <div className="text-sm font-medium text-[color:var(--color-fg)]">${cut.expected.toFixed(2)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-[color:var(--color-fg-subtle)]">Real</div>
-          <div className="text-sm font-medium text-[color:var(--color-fg)]">${cut.closingAmount.toFixed(2)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-[color:var(--color-fg-subtle)]">Operador</div>
-          <div className="text-sm font-medium text-[color:var(--color-fg)]">{cut.openerName}</div>
-        </div>
+      </div>
+    </li>
+  );
+}
+
+function CutMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-[color:var(--color-fg-subtle)]">{label}</div>
+      <div className={`mt-0.5 truncate font-mono text-sm font-semibold tabular-nums ${accent ? 'text-[color:var(--color-accent)]' : 'text-[color:var(--color-fg)]'}`}>
+        {value}
       </div>
     </div>
   );

@@ -39,6 +39,15 @@ export interface CashCutSummary {
   openerName: string;
 }
 
+export interface StaffSales {
+  profileId: string;
+  name: string;
+  role: string;
+  totalSales: number;
+  orderCount: number;
+  avgTicket: number;
+}
+
 export function useReports() {
   const getSalesByPeriod = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<DailySales[]> => {
     let query = supabase
@@ -239,6 +248,45 @@ export function useReports() {
     });
   }, []);
 
+  const getSalesByStaff = useCallback(async (startDate: string, endDate: string, businessLineId?: string | null): Promise<StaffSales[]> => {
+    let query = supabase
+      .from('orders')
+      .select('total, created_by, creator:profiles!orders_created_by_fkey(full_name, email, role)')
+      .neq('status', 'cancelled')
+      .not('payment_method', 'is', null)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+
+    if (businessLineId) {
+      query = query.eq('business_line_id', businessLineId);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+
+    const map = new Map<string, { name: string; role: string; totalSales: number; orderCount: number }>();
+    for (const row of data as Array<{ total: number; created_by: string; creator: { full_name: string | null; email: string | null; role: string } | { full_name: string | null; email: string | null; role: string }[] | null }>) {
+      const creator = Array.isArray(row.creator) ? row.creator[0] : row.creator;
+      const name = creator?.full_name?.trim() || creator?.email || 'Sin asignar';
+      const role = creator?.role ?? '';
+      const existing = map.get(row.created_by) ?? { name, role, totalSales: 0, orderCount: 0 };
+      existing.totalSales += row.total;
+      existing.orderCount += 1;
+      map.set(row.created_by, existing);
+    }
+
+    return Array.from(map.entries())
+      .map(([profileId, v]) => ({
+        profileId,
+        name: v.name,
+        role: v.role,
+        totalSales: Math.round(v.totalSales * 100) / 100,
+        orderCount: v.orderCount,
+        avgTicket: v.orderCount === 0 ? 0 : Math.round((v.totalSales / v.orderCount) * 100) / 100,
+      }))
+      .sort((a, b) => b.totalSales - a.totalSales);
+  }, []);
+
   return {
     getSalesByPeriod,
     getTopProducts,
@@ -246,5 +294,6 @@ export function useReports() {
     getSalesByPaymentMethod,
     getSalesByHour,
     getCashCutHistory,
+    getSalesByStaff,
   };
 }

@@ -1,15 +1,25 @@
 import { useState, useMemo } from 'react';
-import { Users, Plus, Pencil, Trash2, Search, Phone, Cake } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Search, Phone, Cake, Repeat, Wallet, Clock, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCustomers } from '@/hooks/useCustomers';
+import { useCustomers, type CustomerWithStats } from '@/hooks/useCustomers';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import type { Database } from '@/lib/database.types';
 
-type CustomerRow = Database['public']['Tables']['customers']['Row'];
+type CustomerRow = CustomerWithStats;
+
+function daysAgo(iso: string | null): string {
+  if (!iso) return 'Sin visitas';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'Hoy';
+  if (days === 1) return 'Ayer';
+  if (days < 7) return `Hace ${days}d`;
+  if (days < 30) return `Hace ${Math.floor(days / 7)}sem`;
+  return `Hace ${Math.floor(days / 30)}m`;
+}
 
 interface CustomerForm {
   name: string;
@@ -40,14 +50,29 @@ export function CustomersPage() {
   const [deleting, setDeleting] = useState(false);
 
   const filteredCustomers = useMemo(() => {
-    if (!search) return customers;
-    const q = search.toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.phone && c.phone.includes(q)),
-    );
+    const base = search
+      ? customers.filter((c) => {
+          const q = search.toLowerCase();
+          return c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q));
+        })
+      : customers;
+    // Most frequent / recent first; falls back to alphabetical for clients with no visits.
+    return [...base].sort((a, b) => {
+      if (b.visits !== a.visits) return b.visits - a.visits;
+      if (a.visits === 0) return a.name.localeCompare(b.name);
+      return (b.lastVisit ?? '').localeCompare(a.lastVisit ?? '');
+    });
   }, [customers, search]);
+
+  const totals = useMemo(() => {
+    const withVisits = customers.filter((c) => c.visits > 0);
+    return {
+      totalCustomers: customers.length,
+      activeCustomers: withVisits.length,
+      repeatCustomers: customers.filter((c) => c.visits >= 3).length,
+      lifetimeRevenue: Math.round(customers.reduce((s, c) => s + c.totalSpent, 0) * 100) / 100,
+    };
+  }, [customers]);
 
   // Find upcoming birthdays (next 30 days)
   const upcomingBirthdays = useMemo(() => {
@@ -155,6 +180,31 @@ export function CustomersPage() {
         </Button>
       </div>
 
+      {/* Fidelidad — resumen */}
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<Users size={16} />}
+          label="Total clientes"
+          value={totals.totalCustomers.toString()}
+        />
+        <StatCard
+          icon={<TrendingUp size={16} />}
+          label="Clientes activos"
+          value={totals.activeCustomers.toString()}
+          hint={`${totals.totalCustomers === 0 ? 0 : Math.round((totals.activeCustomers / totals.totalCustomers) * 100)}% del total`}
+        />
+        <StatCard
+          icon={<Repeat size={16} />}
+          label="Frecuentes (3+ visitas)"
+          value={totals.repeatCustomers.toString()}
+        />
+        <StatCard
+          icon={<Wallet size={16} />}
+          label="Ingresos totales"
+          value={`$${totals.lifetimeRevenue.toFixed(2)}`}
+        />
+      </div>
+
       {/* Upcoming birthdays */}
       {upcomingBirthdays.length > 0 && (
         <div className="mb-6 rounded-xl border border-[color:var(--color-accent)]/30 bg-[color:var(--color-accent)]/5 p-4">
@@ -188,53 +238,85 @@ export function CustomersPage() {
 
       {/* Customer list */}
       <div className="flex flex-col gap-3">
-        {filteredCustomers.map((customer) => (
-          <div
-            key={customer.id}
-            className="flex items-center gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-inset)] text-sm font-bold text-[color:var(--color-fg-muted)]">
-              {customer.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-[color:var(--color-fg)] truncate">{customer.name}</h3>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-[color:var(--color-fg-muted)]">
-                {customer.phone && (
-                  <span className="flex items-center gap-1">
-                    <Phone size={12} />
-                    {customer.phone}
-                  </span>
-                )}
-                {customer.birthday && (
-                  <span className="flex items-center gap-1">
-                    <Cake size={12} />
-                    {new Date(customer.birthday + 'T12:00:00').toLocaleDateString('es-MX', {
-                      day: 'numeric',
-                      month: 'short',
-                    })}
-                  </span>
+        {filteredCustomers.map((customer) => {
+          const isFrequent = customer.visits >= 3;
+          return (
+            <div
+              key={customer.id}
+              className="flex items-center gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4"
+            >
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold
+                ${isFrequent
+                  ? 'bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]'
+                  : 'bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg-muted)]'}`}>
+                {customer.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-[color:var(--color-fg)] truncate">{customer.name}</h3>
+                  {isFrequent && (
+                    <span className="rounded-full bg-[color:var(--color-accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--color-accent)]">
+                      Frecuente
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-[color:var(--color-fg-muted)]">
+                  {customer.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone size={12} />
+                      {customer.phone}
+                    </span>
+                  )}
+                  {customer.birthday && (
+                    <span className="flex items-center gap-1">
+                      <Cake size={12} />
+                      {new Date(customer.birthday + 'T12:00:00').toLocaleDateString('es-MX', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </span>
+                  )}
+                </div>
+                {customer.notes && (
+                  <p className="mt-1 text-xs text-[color:var(--color-fg-subtle)] truncate">{customer.notes}</p>
                 )}
               </div>
-              {customer.notes && (
-                <p className="mt-1 text-xs text-[color:var(--color-fg-subtle)] truncate">{customer.notes}</p>
-              )}
+              <div className="hidden shrink-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:text-right">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Visitas</div>
+                  <div className="font-mono text-base font-bold tabular-nums text-[color:var(--color-fg)]">{customer.visits}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Gastado</div>
+                  <div className="font-mono text-base font-bold tabular-nums text-[color:var(--color-accent)]">
+                    ${customer.totalSpent.toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Última</div>
+                  <div className="flex items-center justify-end gap-1 text-xs text-[color:var(--color-fg-muted)]">
+                    <Clock size={11} />
+                    {daysAgo(customer.lastVisit)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  onClick={() => openEdit(customer)}
+                  className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(customer)}
+                  className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-red-400"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => openEdit(customer)}
-                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-accent)]"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                onClick={() => setDeleteConfirm(customer)}
-                className="rounded-lg p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-red-400"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {filteredCustomers.length === 0 && (
@@ -303,6 +385,23 @@ export function CustomersPage() {
         confirmLabel="Eliminar"
         loading={deleting}
       />
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4">
+      <div className="mb-1 flex items-center gap-1.5 text-xs text-[color:var(--color-fg-muted)]">
+        {icon}
+        {label}
+      </div>
+      <div className="font-mono text-2xl font-bold tabular-nums text-[color:var(--color-fg)]">
+        {value}
+      </div>
+      {hint && (
+        <div className="mt-0.5 text-[11px] text-[color:var(--color-fg-subtle)]">{hint}</div>
+      )}
     </div>
   );
 }

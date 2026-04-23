@@ -99,7 +99,7 @@ export function Login() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 flex max-h-full w-full max-w-5xl flex-col items-center gap-5"
+            className="relative z-10 flex max-h-full w-full max-w-4xl flex-col items-center gap-5 xl:max-w-5xl"
           >
             <img
               src="/Logo - La Andaluza_V.svg"
@@ -165,7 +165,7 @@ export function Login() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 flex w-full max-w-4xl items-center justify-center gap-12"
+            className="relative z-10 flex w-full max-w-3xl items-center justify-center gap-8 xl:max-w-4xl xl:gap-10"
           >
             <button
               onClick={reset}

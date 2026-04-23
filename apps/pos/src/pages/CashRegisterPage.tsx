@@ -254,7 +254,7 @@ export function CashRegisterPage() {
                   {movements.length === 0 ? (
                     <p className="py-6 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin movimientos aún</p>
                   ) : (
-                    <div className="max-h-[400px] space-y-2 overflow-y-auto">
+                    <div className="max-h-[320px] space-y-2 overflow-y-auto xl:max-h-[440px]">
                       {movements.map((mov) => {
                         const meta = movementLabels[mov.type] ?? { label: mov.type, color: 'text-[color:var(--color-fg-muted)]' };
                         return (

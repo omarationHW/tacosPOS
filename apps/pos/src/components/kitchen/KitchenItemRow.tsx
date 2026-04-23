@@ -14,21 +14,36 @@ interface KitchenItemRowProps {
 
 export function KitchenItemRow({ item }: KitchenItemRowProps) {
   const config = statusConfig[item.status];
+  const mods = item.modifiers ?? [];
   return (
-    <div className="py-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-[color:var(--color-fg)]">
+    <div className="py-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
           <span className="font-mono font-bold tabular-nums text-[color:var(--color-fg)]">
             {item.quantity}×
           </span>{' '}
-          {item.product?.name ?? 'Producto'}
-        </span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.className}`}>
+          <span className="text-sm font-semibold text-[color:var(--color-fg)]">
+            {item.product?.name ?? 'Producto'}
+          </span>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.className}`}>
           {config.label}
         </span>
       </div>
+      {mods.length > 0 && (
+        <ul className="mt-1 ml-5 flex flex-col gap-0.5">
+          {mods.map((m) => (
+            <li
+              key={m.id}
+              className="text-xs font-medium text-[color:var(--color-fg-muted)]"
+            >
+              · {m.modifier_name}
+            </li>
+          ))}
+        </ul>
+      )}
       {item.notes && (
-        <p className="mt-1 text-xs font-medium italic text-[color:var(--color-accent)]">
+        <p className="mt-1 ml-5 text-xs font-semibold italic text-[color:var(--color-accent)]">
           → {item.notes}
         </p>
       )}

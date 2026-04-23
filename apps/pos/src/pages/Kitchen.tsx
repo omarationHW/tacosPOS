@@ -51,7 +51,7 @@ export function Kitchen() {
           </p>
         </div>
       ) : (
-        <motion.div layout className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <motion.div layout className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           <AnimatePresence initial={false}>
             {orders.map((order, index) => (
               <motion.div

@@ -4,14 +4,15 @@ import { Sidebar } from './Sidebar';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
 
 export function AppLayout() {
-  const { activeBusinessLine } = useBusinessLine();
+  const { activeBusinessLine, isAllLines } = useBusinessLine();
 
   useEffect(() => {
     const body = document.body;
-    body.classList.remove('line-hamburguesas', 'line-carnitas');
-    if (activeBusinessLine?.slug === 'hamburguesas') body.classList.add('line-hamburguesas');
+    body.classList.remove('line-hamburguesas', 'line-carnitas', 'line-all');
+    if (isAllLines) body.classList.add('line-all');
+    else if (activeBusinessLine?.slug === 'hamburguesas') body.classList.add('line-hamburguesas');
     else if (activeBusinessLine?.slug === 'carnitas') body.classList.add('line-carnitas');
-  }, [activeBusinessLine]);
+  }, [activeBusinessLine, isAllLines]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[color:var(--color-bg)]">
