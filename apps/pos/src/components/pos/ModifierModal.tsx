@@ -14,11 +14,18 @@ interface ModifierModalProps {
   onClose: () => void;
 }
 
-/** Modifier groups that are auto-resolved (and hidden) for dine-in orders. */
-const AUTO_DINE_IN_GROUPS = ['verdura'];
+/**
+ * Modifier groups that are auto-resolved (and hidden) for dine-in orders.
+ * - 'preselect-first': hide and pre-select the first option (e.g., Verdura→Con todo).
+ * - 'skip': hide and don't select anything (e.g., Acompañamientos: comes standard).
+ */
+const AUTO_DINE_IN_GROUPS: Record<string, 'preselect-first' | 'skip'> = {
+  'verdura':         'preselect-first',
+  'acompañamientos': 'skip',
+};
 
-function isAutoGroup(name: string): boolean {
-  return AUTO_DINE_IN_GROUPS.includes(name.trim().toLowerCase());
+function getAutoBehavior(name: string): 'preselect-first' | 'skip' | null {
+  return AUTO_DINE_IN_GROUPS[name.trim().toLowerCase()] ?? null;
 }
 
 export function ModifierModal({ product, orderType, onConfirm, onClose }: ModifierModalProps) {
@@ -27,9 +34,8 @@ export function ModifierModal({ product, orderType, onConfirm, onClose }: Modifi
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
     const init: Record<string, Set<string>> = {};
     for (const pmg of product.modifier_groups) {
-      // For dine-in, pre-select the first modifier of auto-resolved groups
-      // (e.g., "Verdura" → "Con todo") so the kitchen still gets the spec.
-      if (isDineIn && isAutoGroup(pmg.modifier_group.name)) {
+      const behavior = isDineIn ? getAutoBehavior(pmg.modifier_group.name) : null;
+      if (behavior === 'preselect-first') {
         const first = pmg.modifier_group.modifiers.find((m) => m.is_active);
         init[pmg.modifier_group_id] = new Set(first ? [first.id] : []);
       } else {
@@ -42,7 +48,7 @@ export function ModifierModal({ product, orderType, onConfirm, onClose }: Modifi
   const visibleGroups = useMemo(
     () =>
       product.modifier_groups.filter(
-        (pmg) => !(isDineIn && isAutoGroup(pmg.modifier_group.name)),
+        (pmg) => !(isDineIn && getAutoBehavior(pmg.modifier_group.name) !== null),
       ),
     [product, isDineIn],
   );
