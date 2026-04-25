@@ -1,4 +1,4 @@
-import type { KitchenOrderItem } from '@/hooks/useKitchenOrders';
+import type { KitchenOrderItem, KitchenOrder } from '@/hooks/useKitchenOrders';
 
 const statusConfig = {
   pending:   { label: 'Pendiente',  className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
@@ -8,13 +8,23 @@ const statusConfig = {
   cancelled: { label: 'Cancelado',  className: 'bg-red-500/15 text-red-600 dark:text-red-400' },
 };
 
+/**
+ * Modifier groups que en dine-in son "lo standard de la casa" y no se
+ * imprimen en cocina. Sin grasa / Sin dorar / Tipo de carne sí siguen.
+ */
+const HIDDEN_GROUPS_DINE_IN = new Set(['verdura', 'acompañamientos']);
+
 interface KitchenItemRowProps {
   item: KitchenOrderItem;
+  orderType: KitchenOrder['order_type'];
 }
 
-export function KitchenItemRow({ item }: KitchenItemRowProps) {
+export function KitchenItemRow({ item, orderType }: KitchenItemRowProps) {
   const config = statusConfig[item.status];
-  const mods = item.modifiers ?? [];
+  const allMods = item.modifiers ?? [];
+  const mods = orderType === 'dine_in'
+    ? allMods.filter((m) => !HIDDEN_GROUPS_DINE_IN.has((m.group_name ?? '').trim().toLowerCase()))
+    : allMods;
   return (
     <div className="py-2.5">
       <div className="flex items-start justify-between gap-2">

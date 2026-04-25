@@ -9,7 +9,7 @@ export interface KitchenOrderItem {
   notes: string | null;
   sent_to_kitchen_at: string | null;
   product: { name: string };
-  modifiers: { id: string; modifier_name: string }[];
+  modifiers: { id: string; modifier_name: string; group_name: string | null }[];
 }
 
 export interface KitchenOrder {
@@ -84,7 +84,13 @@ export function useKitchenOrders() {
           notes,
           sent_to_kitchen_at,
           product:products ( name ),
-          modifiers:order_item_modifiers ( id, modifier_name )
+          modifiers:order_item_modifiers (
+            id,
+            modifier_name,
+            modifier:modifiers (
+              modifier_group:modifier_groups ( name )
+            )
+          )
         )
       `)
       .in('status', ['open', 'in_progress'])
@@ -103,7 +109,16 @@ export function useKitchenOrders() {
       order_items: (order.order_items ?? []).map((item: any) => ({
         ...item,
         product: Array.isArray(item.product) ? item.product[0] : item.product,
-        modifiers: item.modifiers ?? [],
+        modifiers: (item.modifiers ?? []).map((m: any) => {
+          const modRel = Array.isArray(m.modifier) ? m.modifier[0] : m.modifier;
+          const groupRel = modRel?.modifier_group;
+          const group = Array.isArray(groupRel) ? groupRel[0] : groupRel;
+          return {
+            id: m.id,
+            modifier_name: m.modifier_name,
+            group_name: group?.name ?? null,
+          };
+        }),
       })),
     })) as KitchenOrder[];
 

@@ -141,7 +141,7 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
       <div className="flex-1 overflow-y-auto px-4" style={{ maxHeight: '420px' }}>
         <div className="divide-y divide-[color:var(--color-border)]">
           {activeItems.map((item) => (
-            <KitchenItemRow key={item.id} item={item} />
+            <KitchenItemRow key={item.id} item={item} orderType={order.order_type} />
           ))}
         </div>
       </div>
