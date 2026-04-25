@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare } from 'lucide-react';
+import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus } from 'lucide-react';
 import { KitchenItemRow } from './KitchenItemRow';
 import { getOrderPhase } from '@/hooks/useKitchenOrders';
 import type { KitchenOrder, OrderPhase } from '@/hooks/useKitchenOrders';
@@ -69,6 +70,7 @@ interface KitchenOrderCardProps {
 }
 
 export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: KitchenOrderCardProps) {
+  const navigate = useNavigate();
   const activeItems = order.order_items.filter((i) => i.status !== 'cancelled');
   const phase = getOrderPhase(order);
   const action = phase !== 'done' ? phaseAction[phase] : null;
@@ -77,6 +79,17 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
     : (order.customer_name || null);
   const typeMeta = ORDER_TYPE_META[order.order_type];
   const orderNote = meaningfulOrderNote(order);
+
+  const handleAddItems = () => {
+    navigate('/pos', {
+      state: {
+        appendOrderId: order.id,
+        appendOrderLabel: displayName ?? `Pedido ${orderNumber}`,
+        appendOrderType: order.order_type,
+        appendOrderLineId: order.business_line_id,
+      },
+    });
+  };
 
   // tick every 30s so age bucket updates without needing external state
   const [, setTick] = useState(0);
@@ -133,13 +146,23 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
         </div>
       </div>
 
-      {action && (
-        <div className="px-4 pt-3 pb-4">
+      <div className="flex gap-2 px-4 pt-3 pb-4">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={handleAddItems}
+          disabled={busy}
+          title="Agregar items a este pedido"
+          className="flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-3 text-sm font-semibold text-[color:var(--color-fg-muted)] transition-colors hover:border-[color:var(--color-accent)] hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+        >
+          <Plus size={18} />
+        </motion.button>
+        {action && (
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => onAdvance(order)}
             disabled={busy}
-            className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3
+            className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3
               text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
               ${actionStyles[action.variant]}`}
@@ -147,8 +170,8 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
             <action.icon size={18} />
             {action.label}
           </motion.button>
-        </div>
-      )}
+        )}
+      </div>
     </motion.div>
   );
 }

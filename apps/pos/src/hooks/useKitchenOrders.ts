@@ -19,6 +19,7 @@ export interface KitchenOrder {
   customer_name: string | null;
   daily_order_number: number | null;
   order_type: 'dine_in' | 'takeout' | 'delivery';
+  business_line_id: string;
   created_at: string;
   order_items: KitchenOrderItem[];
 }

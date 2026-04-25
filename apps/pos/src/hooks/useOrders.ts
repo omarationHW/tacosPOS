@@ -118,6 +118,23 @@ export function useOrders() {
     return { orderId: order.id, appended: false, dailyOrderNumber: order.daily_order_number ?? null };
   }
 
+  async function appendItemsToOrder(orderId: string, items: CartItem[]): Promise<CreateOrderResult> {
+    if (items.length === 0) throw new Error('No hay items para agregar');
+
+    const { data: existing, error } = await supabase
+      .from('orders')
+      .select('id, subtotal, tax, total, daily_order_number, status')
+      .eq('id', orderId)
+      .single();
+
+    if (error || !existing) throw new Error('No se encontró el pedido');
+    if (existing.status === 'completed' || existing.status === 'cancelled') {
+      throw new Error('No se pueden agregar items a un pedido cerrado');
+    }
+
+    return appendToOrder(existing, items);
+  }
+
   async function appendToOrder(
     existing: { id: string; subtotal: number; tax: number; total: number; daily_order_number: number | null },
     items: CartItem[],
@@ -196,5 +213,5 @@ export function useOrders() {
     if (error) throw error;
   }
 
-  return { createOrder, updateOrderStatus };
+  return { createOrder, updateOrderStatus, appendItemsToOrder };
 }

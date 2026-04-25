@@ -31,6 +31,12 @@ interface OrderPanelProps {
   onCustomerNameChange: (name: string) => void;
   /** When true, hide the customer name input — order is auto-numbered (carnitas). */
   autoNumber?: boolean;
+  /** When set, show "Agregando a {label}" in place of customer/auto-number row. */
+  appendLabel?: string;
+  /** Override the submit button label. */
+  submitLabel?: string;
+  /** When true, the order-type toggle is read-only (append mode). */
+  orderTypeLocked?: boolean;
   onIncrement: (cartKey: string) => void;
   onDecrement: (cartKey: string) => void;
   onUpdateNotes: (cartKey: string, notes: string) => void;
@@ -170,6 +176,9 @@ export function OrderPanel({
   customerName,
   onCustomerNameChange,
   autoNumber = false,
+  appendLabel,
+  submitLabel,
+  orderTypeLocked = false,
   onIncrement,
   onDecrement,
   onUpdateNotes,
@@ -190,7 +199,10 @@ export function OrderPanel({
         <div
           role="radiogroup"
           aria-label="Tipo de pedido"
-          className="relative mb-3 flex rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-inset)] p-1"
+          aria-disabled={orderTypeLocked}
+          className={`relative mb-3 flex rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-inset)] p-1 ${
+            orderTypeLocked ? 'opacity-70' : ''
+          }`}
         >
           {ORDER_TYPES.map(({ key, label }) => {
             const active = orderType === key;
@@ -199,9 +211,11 @@ export function OrderPanel({
                 key={key}
                 role="radio"
                 aria-checked={active}
-                onClick={() => onOrderTypeChange(key)}
-                className={`relative z-10 flex-1 cursor-pointer rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors lg:text-sm
+                disabled={orderTypeLocked}
+                onClick={() => !orderTypeLocked && onOrderTypeChange(key)}
+                className={`relative z-10 flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors lg:text-sm
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
+                  ${orderTypeLocked ? 'cursor-not-allowed' : 'cursor-pointer'}
                   ${active
                     ? 'text-[color:var(--color-accent-fg)]'
                     : 'text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]'
@@ -220,7 +234,16 @@ export function OrderPanel({
           })}
         </div>
 
-        {autoNumber ? (
+        {appendLabel ? (
+          <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-accent)]/50 bg-[color:var(--color-accent-soft)] px-3 py-1.5">
+            <span className="font-display text-xs font-semibold uppercase tracking-wider text-[color:var(--color-accent)]">
+              Agregando a
+            </span>
+            <span className="truncate text-xs font-semibold text-[color:var(--color-fg)]">
+              {appendLabel}
+            </span>
+          </div>
+        ) : autoNumber ? (
           <div className="flex items-center gap-2 rounded-lg border border-dashed border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent-soft)] px-3 py-1.5">
             <span className="font-display text-xs font-semibold uppercase tracking-wider text-[color:var(--color-accent)]">
               Pedido #
@@ -298,7 +321,7 @@ export function OrderPanel({
             loading={loading}
             className="flex-[2]"
           >
-            Enviar a Cocina
+            {submitLabel ?? 'Enviar a Cocina'}
           </Button>
         </div>
       </div>
