@@ -5,22 +5,47 @@ import NumberFlow from '@number-flow/react';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { ProductWithRelations } from '@/hooks/useProducts';
-import type { CartItemModifier } from './OrderPanel';
+import type { CartItemModifier, OrderType } from './OrderPanel';
 
 interface ModifierModalProps {
   product: ProductWithRelations;
+  orderType: OrderType;
   onConfirm: (modifiers: CartItemModifier[]) => void;
   onClose: () => void;
 }
 
-export function ModifierModal({ product, onConfirm, onClose }: ModifierModalProps) {
+/** Modifier groups that are auto-resolved (and hidden) for dine-in orders. */
+const AUTO_DINE_IN_GROUPS = ['verdura'];
+
+function isAutoGroup(name: string): boolean {
+  return AUTO_DINE_IN_GROUPS.includes(name.trim().toLowerCase());
+}
+
+export function ModifierModal({ product, orderType, onConfirm, onClose }: ModifierModalProps) {
+  const isDineIn = orderType === 'dine_in';
+
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
     const init: Record<string, Set<string>> = {};
     for (const pmg of product.modifier_groups) {
-      init[pmg.modifier_group_id] = new Set();
+      // For dine-in, pre-select the first modifier of auto-resolved groups
+      // (e.g., "Verdura" → "Con todo") so the kitchen still gets the spec.
+      if (isDineIn && isAutoGroup(pmg.modifier_group.name)) {
+        const first = pmg.modifier_group.modifiers.find((m) => m.is_active);
+        init[pmg.modifier_group_id] = new Set(first ? [first.id] : []);
+      } else {
+        init[pmg.modifier_group_id] = new Set();
+      }
     }
     return init;
   });
+
+  const visibleGroups = useMemo(
+    () =>
+      product.modifier_groups.filter(
+        (pmg) => !(isDineIn && isAutoGroup(pmg.modifier_group.name)),
+      ),
+    [product, isDineIn],
+  );
 
   const toggleModifier = (groupId: string, modifierId: string, maxSelect: number) => {
     setSelections((prev) => {
@@ -119,7 +144,7 @@ export function ModifierModal({ product, onConfirm, onClose }: ModifierModalProp
 
             <div className="flex-1 overflow-y-auto px-6 pb-6">
               <div className="flex flex-col gap-6">
-                {product.modifier_groups.map((pmg) => {
+                {visibleGroups.map((pmg) => {
                   const mg = pmg.modifier_group;
                   const selectedIds = selections[pmg.modifier_group_id] ?? new Set();
                   const activeModifiers = mg.modifiers.filter((m) => m.is_active);

@@ -16,6 +16,8 @@ interface CreateOrderParams {
 interface CreateOrderResult {
   orderId: string;
   appended: boolean;
+  /** Sequential daily number assigned by the DB trigger (carnitas only). */
+  dailyOrderNumber: number | null;
 }
 
 function getItemUnitPrice(item: CartItem): number {
@@ -59,23 +61,29 @@ export function useOrders() {
   async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items en el pedido');
 
-    // Check for existing open order for the same customer + business line
-    const { data: existing } = await supabase
-      .from('orders')
-      .select('id, subtotal, tax, total')
-      .eq('customer_name', customerName)
-      .eq('business_line_id', businessLineId)
-      .in('status', ['open', 'in_progress'])
-      .is('payment_method', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Carnitas orders use auto-numbering; never coalesce them by name.
+    const trimmedName = customerName.trim();
 
-    if (existing) {
-      return await appendToOrder(existing, items);
+    // Check for existing open order for the same customer + business line.
+    // Skip the lookup entirely when there's no name (carnitas auto-numbered).
+    if (trimmedName) {
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('id, subtotal, tax, total, daily_order_number')
+        .eq('customer_name', trimmedName)
+        .eq('business_line_id', businessLineId)
+        .in('status', ['open', 'in_progress'])
+        .is('payment_method', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        return await appendToOrder(existing, items);
+      }
     }
 
-    return await insertNewOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes });
+    return await insertNewOrder({ items, createdBy, customerName: trimmedName, businessLineId, tableId, orderType, notes });
   }
 
   async function insertNewOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
@@ -83,14 +91,14 @@ export function useOrders() {
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 
-    const customerId = await upsertCustomerByName(customerName);
+    const customerId = customerName ? await upsertCustomerByName(customerName) : null;
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         created_by: createdBy,
         table_id: tableId || null,
-        customer_name: customerName,
+        customer_name: customerName || null,
         customer_id: customerId,
         business_line_id: businessLineId,
         order_type: orderType || 'dine_in',
@@ -100,18 +108,18 @@ export function useOrders() {
         total,
         notes: notes || null,
       })
-      .select('id')
+      .select('id, daily_order_number')
       .single();
 
     if (orderError) throw orderError;
 
     await insertOrderItems(order.id, items);
 
-    return { orderId: order.id, appended: false };
+    return { orderId: order.id, appended: false, dailyOrderNumber: order.daily_order_number ?? null };
   }
 
   async function appendToOrder(
-    existing: { id: string; subtotal: number; tax: number; total: number },
+    existing: { id: string; subtotal: number; tax: number; total: number; daily_order_number: number | null },
     items: CartItem[],
   ): Promise<CreateOrderResult> {
     await insertOrderItems(existing.id, items);
@@ -128,7 +136,7 @@ export function useOrders() {
 
     if (updateError) throw updateError;
 
-    return { orderId: existing.id, appended: true };
+    return { orderId: existing.id, appended: true, dailyOrderNumber: existing.daily_order_number ?? null };
   }
 
   async function insertOrderItems(orderId: string, items: CartItem[]) {

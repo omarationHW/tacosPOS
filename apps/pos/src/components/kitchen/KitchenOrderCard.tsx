@@ -58,7 +58,9 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
   const activeItems = order.order_items.filter((i) => i.status !== 'cancelled');
   const phase = getOrderPhase(order);
   const action = phase !== 'done' ? phaseAction[phase] : null;
-  const displayName = order.customer_name || order.notes || null;
+  const displayName = order.daily_order_number != null
+    ? `Pedido #${order.daily_order_number}`
+    : (order.customer_name || order.notes || null);
 
   // tick every 30s so age bucket updates without needing external state
   const [, setTick] = useState(0);

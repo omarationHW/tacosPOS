@@ -35,6 +35,7 @@ export function useOpenTabs() {
         id,
         table_id,
         customer_name,
+        daily_order_number,
         order_type,
         notes,
         subtotal,
@@ -73,11 +74,17 @@ export function useOpenTabs() {
     for (const order of orders) {
       const orderType = order.order_type ?? 'dine_in';
       const customerName = order.customer_name as string | null;
+      const dailyNumber = order.daily_order_number as number | null;
 
       let key: string;
       let mesa: string;
 
-      if (orderType === 'takeout' || orderType === 'delivery' || !customerName) {
+      if (dailyNumber != null) {
+        // Carnitas: cada orden tiene su propio número, no se agrupa por nombre.
+        key = `order-${order.id}`;
+        const typeLabel = orderType === 'takeout' ? ' · Llevar' : orderType === 'delivery' ? ' · Domicilio' : '';
+        mesa = `Pedido #${dailyNumber}${typeLabel}`;
+      } else if (orderType === 'takeout' || orderType === 'delivery' || !customerName) {
         const prefix = orderType === 'delivery' ? 'delivery' : 'takeout';
         const label = orderType === 'delivery' ? 'A Domicilio' : 'Para Llevar';
         key = `${prefix}-${order.id}`;

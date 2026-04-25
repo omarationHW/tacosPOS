@@ -6,6 +6,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLineFilter } from '@/components/BusinessLineToggle';
+import { useBusinessLine } from '@/contexts/BusinessLineContext';
 import { useDensity, type Density } from '@/contexts/DensityContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CategoryTabs } from '@/components/pos/CategoryTabs';
@@ -27,6 +28,13 @@ export function POS() {
   const { createOrder } = useOrders();
   const { user } = useAuth();
   const { density, setDensity } = useDensity();
+  const { availableBusinessLines } = useBusinessLine();
+
+  // Carnitas uses sequential daily order numbers instead of customer names.
+  const isCarnitasLine = useMemo(() => {
+    if (!resolvedLineId) return false;
+    return availableBusinessLines.find((bl) => bl.id === resolvedLineId)?.slug === 'carnitas';
+  }, [resolvedLineId, availableBusinessLines]);
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -134,7 +142,8 @@ export function POS() {
       return;
     }
 
-    if (!customerName.trim()) {
+    // Carnitas se autonumera; hamburguesas requiere nombre.
+    if (!isCarnitasLine && !customerName.trim()) {
       toast.error('Ingresa el nombre del cliente');
       return;
     }
@@ -160,7 +169,7 @@ export function POS() {
       const result = await createOrder({
         items: cart,
         createdBy: user.id,
-        customerName: customerName.trim(),
+        customerName: isCarnitasLine ? '' : customerName.trim(),
         businessLineId: orderLineId,
         orderType,
         notes,
@@ -171,16 +180,21 @@ export function POS() {
         return sum + (item.price + modTotal) * item.quantity;
       }, 0);
 
+      const orderLabel = result.dailyOrderNumber
+        ? `Pedido #${result.dailyOrderNumber}`
+        : customerName.trim();
+
       if (result.appended) {
         toast.success(
-          `Items agregados a ${customerName} — +$${total.toFixed(2)}`,
+          `Items agregados a ${orderLabel} — +$${total.toFixed(2)}`,
         );
       } else {
         toast.success(
-          `Pedido registrado — ${customerName} — Total: $${total.toFixed(2)}`,
+          `${orderLabel} registrado — Total: $${total.toFixed(2)}`,
         );
       }
       setCart([]);
+      if (isCarnitasLine) setCustomerName('');
     } catch {
       toast.error('Error al registrar el pedido');
     } finally {
@@ -224,6 +238,7 @@ export function POS() {
           onOrderTypeChange={setOrderType}
           customerName={customerName}
           onCustomerNameChange={setCustomerName}
+          autoNumber={isCarnitasLine}
           onIncrement={increment}
           onDecrement={decrement}
           onUpdateNotes={updateNotes}
@@ -236,6 +251,7 @@ export function POS() {
       {modifierProduct && (
         <ModifierModal
           product={modifierProduct}
+          orderType={orderType}
           onConfirm={handleModifierConfirm}
           onClose={() => setModifierProduct(null)}
         />

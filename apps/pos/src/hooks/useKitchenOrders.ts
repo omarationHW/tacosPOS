@@ -17,6 +17,7 @@ export interface KitchenOrder {
   status: 'open' | 'in_progress' | 'completed' | 'cancelled';
   notes: string | null;
   customer_name: string | null;
+  daily_order_number: number | null;
   created_at: string;
   order_items: KitchenOrderItem[];
 }
@@ -70,6 +71,7 @@ export function useKitchenOrders() {
         status,
         notes,
         customer_name,
+        daily_order_number,
         created_at,
         business_line_id,
         order_items (

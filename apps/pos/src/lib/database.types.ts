@@ -429,6 +429,7 @@ export type Database = {
           created_by: string
           customer_id: string | null
           customer_name: string | null
+          daily_order_number: number | null
           discount: number
           id: string
           notes: string | null
@@ -448,6 +449,7 @@ export type Database = {
           created_by: string
           customer_id?: string | null
           customer_name?: string | null
+          daily_order_number?: number | null
           discount?: number
           id?: string
           notes?: string | null
@@ -467,6 +469,7 @@ export type Database = {
           created_by?: string
           customer_id?: string | null
           customer_name?: string | null
+          daily_order_number?: number | null
           discount?: number
           id?: string
           notes?: string | null
@@ -766,7 +769,6 @@ export type Database = {
         Args: never
         Returns: {
           avatar_url: string
-          email: string
           full_name: string
           id: string
           role: Database["public"]["Enums"]["user_role"]

@@ -29,6 +29,8 @@ interface OrderPanelProps {
   onOrderTypeChange: (type: OrderType) => void;
   customerName: string;
   onCustomerNameChange: (name: string) => void;
+  /** When true, hide the customer name input — order is auto-numbered (carnitas). */
+  autoNumber?: boolean;
   onIncrement: (cartKey: string) => void;
   onDecrement: (cartKey: string) => void;
   onUpdateNotes: (cartKey: string, notes: string) => void;
@@ -167,6 +169,7 @@ export function OrderPanel({
   onOrderTypeChange,
   customerName,
   onCustomerNameChange,
+  autoNumber = false,
   onIncrement,
   onDecrement,
   onUpdateNotes,
@@ -217,22 +220,33 @@ export function OrderPanel({
           })}
         </div>
 
-        <div className="flex items-center gap-2">
-          <label htmlFor="customer-name" className="shrink-0 text-xs font-medium uppercase tracking-wide text-[color:var(--color-fg-subtle)]">
-            Cliente
-          </label>
-          <input
-            id="customer-name"
-            type="text"
-            value={customerName}
-            onChange={(e) => onCustomerNameChange(e.target.value)}
-            placeholder="Nombre..."
-            className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm
-              text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)]
-              focus:border-[color:var(--color-accent)] focus:outline-none
-              focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
-          />
-        </div>
+        {autoNumber ? (
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent-soft)] px-3 py-1.5">
+            <span className="font-display text-xs font-semibold uppercase tracking-wider text-[color:var(--color-accent)]">
+              Pedido #
+            </span>
+            <span className="text-xs text-[color:var(--color-fg-muted)]">
+              Se asigna automáticamente al enviar
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <label htmlFor="customer-name" className="shrink-0 text-xs font-medium uppercase tracking-wide text-[color:var(--color-fg-subtle)]">
+              Cliente
+            </label>
+            <input
+              id="customer-name"
+              type="text"
+              value={customerName}
+              onChange={(e) => onCustomerNameChange(e.target.value)}
+              placeholder="Nombre..."
+              className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm
+                text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)]
+                focus:border-[color:var(--color-accent)] focus:outline-none
+                focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 lg:p-4">
