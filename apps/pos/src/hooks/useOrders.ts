@@ -1,7 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import type { CartItem, OrderType } from '@/components/pos/OrderPanel';
 
-const TAX_RATE = 0.16;
+// IVA no se cobra al cliente. La columna `tax` queda en 0 y el total = subtotal.
+// Si en el futuro se reactiva, vuelve a 0.16 y la lógica abajo recalcula.
+const TAX_RATE = 0;
 
 interface CreateOrderParams {
   items: CartItem[];
