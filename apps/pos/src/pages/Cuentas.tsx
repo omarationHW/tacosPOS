@@ -289,22 +289,29 @@ export function Cuentas() {
                   </div>
                 </div>
 
-                {/* Totals */}
+                {/* Totals — IVA queda incluido en el total pero no se muestra desglosado */}
                 <div className="rounded-xl bg-[color:var(--color-bg)] p-3 font-mono text-sm tabular-nums">
-                  <TotalRow label="Subtotal" value={selected.subtotal} muted />
-                  <TotalRow label="IVA (16%)" value={selected.tax} muted />
-                  {computeDiscount(selected.subtotal) > 0 && (
-                    <TotalRow label="Descuento" value={-computeDiscount(selected.subtotal)} tone="success" />
-                  )}
-                  {(parseFloat(tipValue) || 0) > 0 && (
-                    <TotalRow label="Propina" value={parseFloat(tipValue) || 0} tone="info" />
-                  )}
-                  <div className="mt-2 flex items-baseline justify-between border-t border-[color:var(--color-border)] pt-2">
-                    <span className="font-display text-base font-semibold text-[color:var(--color-fg)]">Total</span>
-                    <span className="text-2xl font-bold text-[color:var(--color-fg)]">
-                      $<NumberFlow value={liveTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                    </span>
-                  </div>
+                  {(() => {
+                    const hasDiscount = computeDiscount(selected.subtotal) > 0;
+                    const hasTip = (parseFloat(tipValue) || 0) > 0;
+                    const hasAdjustments = hasDiscount || hasTip;
+                    return (
+                      <>
+                        {hasDiscount && (
+                          <TotalRow label="Descuento" value={-computeDiscount(selected.subtotal)} tone="success" />
+                        )}
+                        {hasTip && (
+                          <TotalRow label="Propina" value={parseFloat(tipValue) || 0} tone="info" />
+                        )}
+                        <div className={`flex items-baseline justify-between ${hasAdjustments ? 'mt-2 border-t border-[color:var(--color-border)] pt-2' : ''}`}>
+                          <span className="font-display text-base font-semibold text-[color:var(--color-fg)]">Total</span>
+                          <span className="text-2xl font-bold text-[color:var(--color-fg)]">
+                            $<NumberFlow value={liveTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex gap-2 pt-1">
