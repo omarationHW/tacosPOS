@@ -12,6 +12,10 @@ interface ModifierModalProps {
   orderType: OrderType;
   onConfirm: (modifiers: CartItemModifier[]) => void;
   onClose: () => void;
+  /** IDs de modifiers ya seleccionados (para edición de un item existente). */
+  initialModifierIds?: string[];
+  /** Cambia el copy del botón principal. Default: "Agregar". */
+  submitLabel?: string;
 }
 
 /**
@@ -28,12 +32,33 @@ function getAutoBehavior(name: string): 'preselect-first' | 'skip' | null {
   return AUTO_DINE_IN_GROUPS[name.trim().toLowerCase()] ?? null;
 }
 
-export function ModifierModal({ product, orderType, onConfirm, onClose }: ModifierModalProps) {
+export function ModifierModal({
+  product,
+  orderType,
+  onConfirm,
+  onClose,
+  initialModifierIds,
+  submitLabel,
+}: ModifierModalProps) {
   const isDineIn = orderType === 'dine_in';
+  const initialSet = useMemo(
+    () => new Set(initialModifierIds ?? []),
+    [initialModifierIds],
+  );
 
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
     const init: Record<string, Set<string>> = {};
     for (const pmg of product.modifier_groups) {
+      // Prioridad 1: si hay selecciones iniciales (edit mode), tomarlas tal cual
+      const fromInitial = pmg.modifier_group.modifiers
+        .filter((m) => initialSet.has(m.id))
+        .map((m) => m.id);
+      if (fromInitial.length > 0) {
+        init[pmg.modifier_group_id] = new Set(fromInitial);
+        continue;
+      }
+
+      // Prioridad 2: dine-in con grupo auto-resuelto pre-selecciona el primero
       const behavior = isDineIn ? getAutoBehavior(pmg.modifier_group.name) : null;
       if (behavior === 'preselect-first') {
         const first = pmg.modifier_group.modifiers.find((m) => m.is_active);
@@ -233,7 +258,7 @@ export function ModifierModal({ product, orderType, onConfirm, onClose }: Modifi
                 disabled={!isValid}
                 className="flex-[2]"
               >
-                <span>Agregar</span>
+                <span>{submitLabel ?? 'Agregar'}</span>
                 <span className="font-mono tabular-nums">
                   $<NumberFlow value={liveTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                 </span>

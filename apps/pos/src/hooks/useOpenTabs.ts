@@ -6,12 +6,14 @@ export interface TabItem {
   /** order_items.id — necesario para editar/cancelar este item específico. */
   orderItemId: string;
   orderId: string;
+  productId: string;
   productName: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
   notes: string | null;
-  modifiers: { id: string; name: string }[];
+  /** Cada modifier conserva el modifier_id original para poder hacer diffs. */
+  modifiers: { id: string; modifierId: string; name: string; priceOverride: number }[];
 }
 
 export interface OpenTab {
@@ -50,13 +52,14 @@ export function useOpenTabs() {
         business_line_id,
         order_items (
           id,
+          product_id,
           quantity,
           unit_price,
           subtotal,
           notes,
           status,
           product:products ( name ),
-          modifiers:order_item_modifiers ( id, modifier_name )
+          modifiers:order_item_modifiers ( id, modifier_id, modifier_name, price_override )
         )
       `)
       .is('payment_method', null)
@@ -129,12 +132,15 @@ export function useOpenTabs() {
         const name = (product as any)?.name ?? 'Producto';
         const modifiers = (item.modifiers ?? []).map((m: any) => ({
           id: m.id,
+          modifierId: m.modifier_id,
           name: m.modifier_name,
+          priceOverride: Number(m.price_override) || 0,
         }));
 
         existing.items.push({
           orderItemId: item.id,
           orderId: order.id,
+          productId: item.product_id,
           productName: name,
           quantity: item.quantity,
           unitPrice: item.unit_price,
@@ -324,6 +330,60 @@ export function useOpenTabs() {
     await fetchTabs();
   }
 
+  /**
+   * Reemplaza los modifiers del item con la lista nueva, recalcula
+   * unit_price (precio base + suma de price_override) y subtotal,
+   * y refresca los totales de la orden.
+   */
+  async function updateItemModifiers(
+    orderItemId: string,
+    orderId: string,
+    productBasePrice: number,
+    newModifiers: { modifierId: string; name: string; priceOverride: number }[],
+  ) {
+    // 1. Borrar los modifiers actuales del item
+    const { error: delErr } = await supabase
+      .from('order_item_modifiers')
+      .delete()
+      .eq('order_item_id', orderItemId);
+    if (delErr) throw delErr;
+
+    // 2. Insertar los nuevos (si hay)
+    if (newModifiers.length > 0) {
+      const rows = newModifiers.map((m) => ({
+        order_item_id: orderItemId,
+        modifier_id: m.modifierId,
+        modifier_name: m.name,
+        price_override: m.priceOverride,
+      }));
+      const { error: insErr } = await supabase
+        .from('order_item_modifiers')
+        .insert(rows);
+      if (insErr) throw insErr;
+    }
+
+    // 3. Recalcular unit_price + subtotal del item
+    const { data: itemRow } = await supabase
+      .from('order_items')
+      .select('quantity')
+      .eq('id', orderItemId)
+      .maybeSingle();
+    if (!itemRow) throw new Error('Item no encontrado');
+
+    const modSum = newModifiers.reduce((s, m) => s + m.priceOverride, 0);
+    const newUnit = Math.round((productBasePrice + modSum) * 100) / 100;
+    const newSubtotal = Math.round(newUnit * itemRow.quantity * 100) / 100;
+
+    const { error: updErr } = await supabase
+      .from('order_items')
+      .update({ unit_price: newUnit, subtotal: newSubtotal })
+      .eq('id', orderItemId);
+    if (updErr) throw updErr;
+
+    await recalcOrderTotals(orderId);
+    await fetchTabs();
+  }
+
   return {
     tabs,
     loading,
@@ -332,5 +392,6 @@ export function useOpenTabs() {
     adjustItemQuantity,
     cancelItem,
     updateItemNotes,
+    updateItemModifiers,
   };
 }

@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import NumberFlow from '@number-flow/react';
-import { Receipt, Banknote, CreditCard, ArrowLeft, Percent, DollarSign, Smartphone, Check, Plus, Minus, Trash2 } from 'lucide-react';
+import { Receipt, Banknote, CreditCard, ArrowLeft, Percent, DollarSign, Smartphone, Check, Plus, Minus, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useOpenTabs, type OpenTab, type TabItem } from '@/hooks/useOpenTabs';
+import { useProducts } from '@/hooks/useProducts';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
+import { ModifierModal } from '@/components/pos/ModifierModal';
+import type { CartItemModifier } from '@/components/pos/OrderPanel';
 
 type DiscountMode = 'fixed' | 'percent';
 
@@ -15,11 +18,48 @@ const TYPE_BADGES: Record<'takeout' | 'delivery', { label: string; className: st
 };
 
 export function Cuentas() {
-  const { tabs, loading, closeTab, adjustItemQuantity, cancelItem } = useOpenTabs();
+  const { tabs, loading, closeTab, adjustItemQuantity, cancelItem, updateItemModifiers } = useOpenTabs();
+  const { products } = useProducts();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [successPulse, setSuccessPulse] = useState(false);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<TabItem | null>(null);
+
+  const editingProduct = editingItem
+    ? products.find((p) => p.id === editingItem.productId) ?? null
+    : null;
+
+  const handleEditModifiers = (item: TabItem) => {
+    if (!products.find((p) => p.id === item.productId)) {
+      toast.error('No se pudo cargar el producto para editar');
+      return;
+    }
+    setEditingItem(item);
+  };
+
+  const handleConfirmModifierEdit = async (mods: CartItemModifier[]) => {
+    if (!editingItem || !editingProduct) return;
+    setBusyItemId(editingItem.orderItemId);
+    try {
+      await updateItemModifiers(
+        editingItem.orderItemId,
+        editingItem.orderId,
+        editingProduct.price,
+        mods.map((m) => ({
+          modifierId: m.modifierId,
+          name: m.name,
+          priceOverride: m.priceOverride,
+        })),
+      );
+      toast.success('Item actualizado');
+      setEditingItem(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar item');
+    } finally {
+      setBusyItemId(null);
+    }
+  };
 
   const handleIncrement = async (item: TabItem) => {
     setBusyItemId(item.orderItemId);
@@ -255,6 +295,7 @@ export function Cuentas() {
                     onIncrement={() => handleIncrement(item)}
                     onDecrement={() => handleDecrement(item)}
                     onDelete={() => handleDelete(item)}
+                    onEdit={() => handleEditModifiers(item)}
                   />
                 ))}
               </div>
@@ -363,6 +404,17 @@ export function Cuentas() {
           </>
         )}
       </div>
+
+      {editingItem && editingProduct && selected && (
+        <ModifierModal
+          product={editingProduct}
+          orderType={selected.orderType}
+          initialModifierIds={editingItem.modifiers.map((m) => m.modifierId)}
+          submitLabel="Guardar"
+          onConfirm={handleConfirmModifierEdit}
+          onClose={() => setEditingItem(null)}
+        />
+      )}
     </div>
   );
 }
@@ -373,12 +425,14 @@ function EditableTabItem({
   onIncrement,
   onDecrement,
   onDelete,
+  onEdit,
 }: {
   item: TabItem;
   busy: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   return (
     <div className="rounded-lg bg-[color:var(--color-bg)] px-3 py-2.5">
@@ -435,17 +489,30 @@ function EditableTabItem({
             <Plus size={14} />
           </button>
         </div>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={busy}
-          aria-label="Eliminar item"
-          className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
-        >
-          <Trash2 size={12} />
-          Eliminar
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={busy}
+            aria-label="Editar opciones"
+            className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+          >
+            <Pencil size={12} />
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            aria-label="Eliminar item"
+            className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+          >
+            <Trash2 size={12} />
+            Eliminar
+          </button>
+        </div>
       </div>
     </div>
   );

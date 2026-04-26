@@ -246,8 +246,29 @@ export function StaffPage() {
     if (!deleteConfirm) return;
     setDeleting(true);
     try {
-      const { error } = await supabase.from('profiles').delete().eq('id', deleteConfirm.id);
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke('admin-delete-staff', {
+        body: { target_profile_id: deleteConfirm.id },
+      });
+
+      if (error) {
+        // Edge function devuelve el error en context.response
+        let message = 'Error al eliminar';
+        try {
+          const anyErr = error as { context?: { response?: Response } };
+          const resp = anyErr.context?.response;
+          if (resp) {
+            const parsed = await resp.clone().json();
+            if (parsed?.error) message = parsed.error;
+          } else if (error instanceof Error && error.message) {
+            message = error.message;
+          }
+        } catch {
+          // fall through
+        }
+        throw new Error(message);
+      }
+      if (!data?.ok) throw new Error(data?.error ?? 'Error al eliminar');
+
       toast.success(`${deleteConfirm.full_name || deleteConfirm.email} eliminado`);
       setDeleteConfirm(null);
       await fetchStaff();
