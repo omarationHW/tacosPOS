@@ -3,10 +3,15 @@ import { supabase } from '@/lib/supabase';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
 
 export interface TabItem {
+  /** order_items.id — necesario para editar/cancelar este item específico. */
+  orderItemId: string;
+  orderId: string;
   productName: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  notes: string | null;
+  modifiers: { id: string; name: string }[];
 }
 
 export interface OpenTab {
@@ -44,11 +49,14 @@ export function useOpenTabs() {
         created_at,
         business_line_id,
         order_items (
+          id,
           quantity,
           unit_price,
           subtotal,
+          notes,
           status,
-          product:products ( name )
+          product:products ( name ),
+          modifiers:order_item_modifiers ( id, modifier_name )
         )
       `)
       .is('payment_method', null)
@@ -119,19 +127,21 @@ export function useOpenTabs() {
         if (item.status === 'cancelled') continue;
         const product = Array.isArray(item.product) ? item.product[0] : item.product;
         const name = (product as any)?.name ?? 'Producto';
+        const modifiers = (item.modifiers ?? []).map((m: any) => ({
+          id: m.id,
+          name: m.modifier_name,
+        }));
 
-        const existingItem = existing.items.find((i) => i.productName === name && i.unitPrice === item.unit_price);
-        if (existingItem) {
-          existingItem.quantity += item.quantity;
-          existingItem.subtotal += item.subtotal;
-        } else {
-          existing.items.push({
-            productName: name,
-            quantity: item.quantity,
-            unitPrice: item.unit_price,
-            subtotal: item.subtotal,
-          });
-        }
+        existing.items.push({
+          orderItemId: item.id,
+          orderId: order.id,
+          productName: name,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          subtotal: item.subtotal,
+          notes: item.notes ?? null,
+          modifiers,
+        });
       }
 
       tabMap.set(key, existing);
@@ -245,5 +255,82 @@ export function useOpenTabs() {
     await fetchTabs();
   }
 
-  return { tabs, loading, closeTab, refetch: fetchTabs };
+  /**
+   * Recalcula subtotal/total de un pedido sumando solo los items no cancelados.
+   * El trigger orders_enforce_no_iva fuerza tax=0 y total=subtotal automáticamente.
+   */
+  async function recalcOrderTotals(orderId: string) {
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('subtotal, status')
+      .eq('order_id', orderId);
+
+    const subtotal = (items ?? [])
+      .filter((i) => i.status !== 'cancelled')
+      .reduce((s, i) => s + Number(i.subtotal), 0);
+
+    await supabase
+      .from('orders')
+      .update({ subtotal, tax: 0, total: subtotal })
+      .eq('id', orderId);
+  }
+
+  /** Cambia la cantidad de un item. Si quantity <= 0, lo cancela. */
+  async function adjustItemQuantity(orderItemId: string, orderId: string, newQuantity: number) {
+    if (newQuantity <= 0) {
+      return cancelItem(orderItemId, orderId);
+    }
+
+    const { data: item } = await supabase
+      .from('order_items')
+      .select('unit_price')
+      .eq('id', orderItemId)
+      .maybeSingle();
+
+    if (!item) throw new Error('Item no encontrado');
+
+    const newSubtotal = Math.round(Number(item.unit_price) * newQuantity * 100) / 100;
+    const { error } = await supabase
+      .from('order_items')
+      .update({ quantity: newQuantity, subtotal: newSubtotal, status: 'pending' })
+      .eq('id', orderItemId);
+
+    if (error) throw error;
+    await recalcOrderTotals(orderId);
+    await fetchTabs();
+  }
+
+  /** Marca un item como cancelado (no se borra para preservar histórico). */
+  async function cancelItem(orderItemId: string, orderId: string) {
+    const { error } = await supabase
+      .from('order_items')
+      .update({ status: 'cancelled' })
+      .eq('id', orderItemId);
+
+    if (error) throw error;
+    await recalcOrderTotals(orderId);
+    await fetchTabs();
+  }
+
+  /** Actualiza la nota libre del item. */
+  async function updateItemNotes(orderItemId: string, notes: string) {
+    const trimmed = notes.trim();
+    const { error } = await supabase
+      .from('order_items')
+      .update({ notes: trimmed || null })
+      .eq('id', orderItemId);
+
+    if (error) throw error;
+    await fetchTabs();
+  }
+
+  return {
+    tabs,
+    loading,
+    closeTab,
+    refetch: fetchTabs,
+    adjustItemQuantity,
+    cancelItem,
+    updateItemNotes,
+  };
 }
