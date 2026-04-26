@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus } from 'lucide-react';
+import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock } from 'lucide-react';
 import { KitchenItemRow } from './KitchenItemRow';
 import { getOrderPhase } from '@/hooks/useKitchenOrders';
 import type { KitchenOrder, OrderPhase } from '@/hooks/useKitchenOrders';
@@ -62,6 +62,26 @@ function meaningfulOrderNote(order: KitchenOrder): string | null {
   return n;
 }
 
+interface PickupInfo {
+  label: string;
+  urgent: boolean;
+}
+
+/** Devuelve la hora "HH:MM" + minutos restantes, o null si no aplica. */
+function formatPickup(iso: string | null): PickupInfo | null {
+  if (!iso) return null;
+  const target = new Date(iso);
+  if (Number.isNaN(target.getTime())) return null;
+  const hh = target.getHours().toString().padStart(2, '0');
+  const mm = target.getMinutes().toString().padStart(2, '0');
+  const minsLeft = Math.round((target.getTime() - Date.now()) / 60000);
+  let suffix = '';
+  if (minsLeft < -2) suffix = ` · vencido ${Math.abs(minsLeft)}m`;
+  else if (minsLeft <= 2) suffix = ' · ahora';
+  else if (minsLeft <= 60) suffix = ` · en ${minsLeft}m`;
+  return { label: `${hh}:${mm}${suffix}`, urgent: minsLeft <= 15 };
+}
+
 interface KitchenOrderCardProps {
   order: KitchenOrder;
   orderNumber: number;
@@ -79,6 +99,7 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
     : (order.customer_name || null);
   const typeMeta = ORDER_TYPE_META[order.order_type];
   const orderNote = meaningfulOrderNote(order);
+  const pickupInfo = formatPickup(order.pickup_at);
 
   const handleAddItems = () => {
     navigate('/pos', {
@@ -129,6 +150,16 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
             <typeMeta.icon size={11} />
             {typeMeta.label}
           </span>
+          {pickupInfo && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              pickupInfo.urgent
+                ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                : 'bg-sky-500/15 text-sky-700 dark:text-sky-400'
+            }`}>
+              <Clock size={11} />
+              {pickupInfo.label}
+            </span>
+          )}
           {orderNote && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-accent)]">
               <MessageSquare size={11} />

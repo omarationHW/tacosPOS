@@ -37,6 +37,10 @@ interface OrderPanelProps {
   submitLabel?: string;
   /** When true, the order-type toggle is read-only (append mode). */
   orderTypeLocked?: boolean;
+  /** Show pickup-time input (only useful for takeout/delivery). */
+  showPickupTime?: boolean;
+  pickupTime?: string;
+  onPickupTimeChange?: (value: string) => void;
   onIncrement: (cartKey: string) => void;
   onDecrement: (cartKey: string) => void;
   onUpdateNotes: (cartKey: string, notes: string) => void;
@@ -179,6 +183,9 @@ export function OrderPanel({
   appendLabel,
   submitLabel,
   orderTypeLocked = false,
+  showPickupTime = false,
+  pickupTime = '',
+  onPickupTimeChange,
   onIncrement,
   onDecrement,
   onUpdateNotes,
@@ -268,6 +275,34 @@ export function OrderPanel({
                 focus:border-[color:var(--color-accent)] focus:outline-none
                 focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
             />
+          </div>
+        )}
+
+        {showPickupTime && (orderType === 'takeout' || orderType === 'delivery') && (
+          <div className="mt-2 flex items-center gap-2">
+            <label htmlFor="pickup-time" className="shrink-0 text-xs font-medium uppercase tracking-wide text-[color:var(--color-fg-subtle)]">
+              Hora
+            </label>
+            <input
+              id="pickup-time"
+              type="time"
+              value={pickupTime}
+              onChange={(e) => onPickupTimeChange?.(e.target.value)}
+              className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 font-mono text-sm tabular-nums
+                text-[color:var(--color-fg)]
+                focus:border-[color:var(--color-accent)] focus:outline-none
+                focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            />
+            {pickupTime && onPickupTimeChange && (
+              <button
+                type="button"
+                onClick={() => onPickupTimeChange('')}
+                title="Quitar hora"
+                className="cursor-pointer rounded-md px-2 py-1 text-xs text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-inset)] hover:text-[color:var(--color-fg)]"
+              >
+                ✕
+              </button>
+            )}
           </div>
         )}
       </div>

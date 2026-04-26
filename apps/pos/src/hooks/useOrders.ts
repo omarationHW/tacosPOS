@@ -13,6 +13,8 @@ interface CreateOrderParams {
   tableId?: string | null;
   orderType?: OrderType;
   notes?: string;
+  /** ISO timestamp opcional para hora de entrega (takeout/delivery). */
+  pickupAt?: string | null;
 }
 
 interface CreateOrderResult {
@@ -60,7 +62,7 @@ async function upsertCustomerByName(customerName: string): Promise<string | null
 }
 
 export function useOrders() {
-  async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
+  async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes, pickupAt }: CreateOrderParams): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items en el pedido');
 
     // Carnitas orders use auto-numbering; never coalesce them by name.
@@ -85,10 +87,10 @@ export function useOrders() {
       }
     }
 
-    return await insertNewOrder({ items, createdBy, customerName: trimmedName, businessLineId, tableId, orderType, notes });
+    return await insertNewOrder({ items, createdBy, customerName: trimmedName, businessLineId, tableId, orderType, notes, pickupAt });
   }
 
-  async function insertNewOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes }: CreateOrderParams): Promise<CreateOrderResult> {
+  async function insertNewOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes, pickupAt }: CreateOrderParams): Promise<CreateOrderResult> {
     const subtotal = items.reduce((sum, item) => sum + getItemUnitPrice(item) * item.quantity, 0);
     const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
@@ -109,6 +111,7 @@ export function useOrders() {
         tax,
         total,
         notes: notes || null,
+        pickup_at: pickupAt || null,
       })
       .select('id, daily_order_number')
       .single();

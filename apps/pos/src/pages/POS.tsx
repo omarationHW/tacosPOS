@@ -22,6 +22,23 @@ function makeCartKey(productId: string, modifiers: CartItemModifier[]): string {
   return `${productId}|${modIds}`;
 }
 
+/**
+ * Combina "HH:MM" (input type=time) con la fecha de hoy y devuelve un ISO
+ * timestamp en zona local. Si la hora ya pasó, asume que es para mañana.
+ */
+function buildPickupIso(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return '';
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(h, m, 0, 0);
+  // Si la hora elegida ya pasó por más de 30 min, asume que es para el día siguiente.
+  if (target.getTime() < now.getTime() - 30 * 60 * 1000) {
+    target.setDate(target.getDate() + 1);
+  }
+  return target.toISOString();
+}
+
 interface AppendState {
   appendOrderId: string;
   appendOrderLabel: string;
@@ -52,10 +69,17 @@ export function POS() {
     return availableBusinessLines.find((bl) => bl.id === effectiveLineId)?.slug === 'carnitas';
   }, [effectiveLineId, availableBusinessLines]);
 
+  // Hamburguesas usa hora de entrega para takeout/delivery (cliente avisa cuándo pasa).
+  const isHamburguesasLine = useMemo(() => {
+    if (!effectiveLineId) return false;
+    return availableBusinessLines.find((bl) => bl.id === effectiveLineId)?.slug === 'hamburguesas';
+  }, [effectiveLineId, availableBusinessLines]);
+
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderType, setOrderType] = useState<OrderType>(appendState?.appendOrderType ?? 'dine_in');
   const [customerName, setCustomerName] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Cuando se entra en modo append, sincroniza orderType con la orden objetivo.
@@ -219,6 +243,9 @@ export function POS() {
             ? 'A Domicilio'
             : undefined;
 
+      // Convertir hora local "HH:MM" a ISO timestamp con la fecha de hoy.
+      const pickupAt = pickupTime ? buildPickupIso(pickupTime) : null;
+
       const result = await createOrder({
         items: cart,
         createdBy: user.id,
@@ -226,6 +253,7 @@ export function POS() {
         businessLineId: orderLineId,
         orderType,
         notes,
+        pickupAt,
       });
 
       const total = cart.reduce((sum, item) => {
@@ -247,6 +275,7 @@ export function POS() {
         );
       }
       setCart([]);
+      setPickupTime('');
       if (isCarnitasLine) setCustomerName('');
     } catch {
       toast.error('Error al registrar el pedido');
@@ -312,6 +341,9 @@ export function POS() {
           appendLabel={isAppendMode ? appendState?.appendOrderLabel : undefined}
           submitLabel={isAppendMode ? 'Agregar a cocina' : 'Enviar a Cocina'}
           orderTypeLocked={isAppendMode}
+          showPickupTime={isHamburguesasLine && !isAppendMode}
+          pickupTime={pickupTime}
+          onPickupTimeChange={setPickupTime}
           onIncrement={increment}
           onDecrement={decrement}
           onUpdateNotes={updateNotes}
