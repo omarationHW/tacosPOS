@@ -2,5 +2,13 @@
   "name": "@tacos-pos/print-agent",
   "version": "0.1.0",
   "private": true,
-  "description": "Print agent for kitchen ticket printing (Fase 3)"
+  "type": "module",
+  "description": "Agente de impresión de comandas de cocina (impresora ANJET80 por red)",
+  "scripts": {
+    "start": "node --env-file=.env index.mjs",
+    "test:printer": "node test-comanda.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0"
+  }
 }
