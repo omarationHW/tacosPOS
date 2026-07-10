@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock } from 'lucide-react';
+import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock, Printer } from 'lucide-react';
 import { KitchenItemRow } from './KitchenItemRow';
 import { getOrderPhase } from '@/hooks/useKitchenOrders';
 import type { KitchenOrder, OrderPhase } from '@/hooks/useKitchenOrders';
@@ -86,10 +86,12 @@ interface KitchenOrderCardProps {
   order: KitchenOrder;
   orderNumber: number;
   onAdvance: (order: KitchenOrder) => void;
+  /** Si se provee, muestra un botón para reimprimir la comanda. */
+  onReprint?: (order: KitchenOrder) => void;
   busy?: boolean;
 }
 
-export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: KitchenOrderCardProps) {
+export function KitchenOrderCard({ order, orderNumber, onAdvance, onReprint, busy }: KitchenOrderCardProps) {
   const navigate = useNavigate();
   const activeItems = order.order_items.filter((i) => i.status !== 'cancelled');
   const phase = getOrderPhase(order);
@@ -188,6 +190,18 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, busy }: Kitche
         >
           <Plus size={18} />
         </motion.button>
+        {onReprint && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onReprint(order)}
+            disabled={busy}
+            title="Reimprimir comanda"
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] px-3 py-3 text-sm font-semibold text-[color:var(--color-fg-muted)] transition-colors hover:border-[color:var(--color-accent)] hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+          >
+            <Printer size={18} />
+          </motion.button>
+        )}
         {action && (
           <motion.button
             whileTap={{ scale: 0.97 }}

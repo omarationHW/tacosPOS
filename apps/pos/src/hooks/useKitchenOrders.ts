@@ -22,6 +22,8 @@ export interface KitchenOrder {
   business_line_id: string;
   pickup_at: string | null;
   created_at: string;
+  table_name: string | null;
+  business_line_name: string | null;
   order_items: KitchenOrderItem[];
 }
 
@@ -58,12 +60,17 @@ function playNewOrderSound() {
   }
 }
 
-export function useKitchenOrders() {
+export function useKitchenOrders(options?: { onNewOrders?: (orders: KitchenOrder[]) => void }) {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const prevOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
+  // Pedidos ya avisados para impresión (con items). Evita reimprimir el backlog
+  // al abrir cocina y evita duplicados por refetch.
+  const reportedOrderIdsRef = useRef<Set<string>>(new Set());
+  const onNewOrdersRef = useRef(options?.onNewOrders);
+  onNewOrdersRef.current = options?.onNewOrders;
   const { activeBusinessLine } = useBusinessLine();
 
   const fetchOrders = useCallback(async () => {
@@ -79,6 +86,8 @@ export function useKitchenOrders() {
         pickup_at,
         created_at,
         business_line_id,
+        table:tables ( name ),
+        business_line:business_lines ( name ),
         order_items (
           id,
           quantity,
@@ -106,8 +115,12 @@ export function useKitchenOrders() {
 
     if (error) return;
 
-    const normalized = (data ?? []).map((order) => ({
+    const normalized = (data ?? []).map((order: any) => ({
       ...order,
+      table_name: (Array.isArray(order.table) ? order.table[0] : order.table)?.name ?? null,
+      business_line_name:
+        (Array.isArray(order.business_line) ? order.business_line[0] : order.business_line)?.name ??
+        null,
       order_items: (order.order_items ?? []).map((item: any) => ({
         ...item,
         product: Array.isArray(item.product) ? item.product[0] : item.product,
@@ -134,12 +147,35 @@ export function useKitchenOrders() {
         }
       }
     }
+
+    // Detectar pedidos nuevos imprimibles (con items) y avisar una sola vez.
+    if (!initialLoadDoneRef.current) {
+      // Primer load: marcar el backlog como ya reportado (no reimprimir).
+      for (const o of normalized) reportedOrderIdsRef.current.add(o.id);
+    } else {
+      const fresh = normalized.filter(
+        (o) => o.order_items.length > 0 && !reportedOrderIdsRef.current.has(o.id),
+      );
+      if (fresh.length > 0) {
+        fresh.forEach((o) => reportedOrderIdsRef.current.add(o.id));
+        onNewOrdersRef.current?.(fresh);
+      }
+    }
+
     prevOrderIdsRef.current = currentIds;
     initialLoadDoneRef.current = true;
 
     setOrders(normalized);
     setLoading(false);
   }, [activeBusinessLine]);
+
+  // Al cambiar de línea de negocio, tratar como carga inicial: re-marcar el
+  // backlog como ya reportado para no reimprimir comandas de la otra línea.
+  useEffect(() => {
+    initialLoadDoneRef.current = false;
+    reportedOrderIdsRef.current.clear();
+    prevOrderIdsRef.current.clear();
+  }, [activeBusinessLine?.id]);
 
   useEffect(() => {
     fetchOrders();
