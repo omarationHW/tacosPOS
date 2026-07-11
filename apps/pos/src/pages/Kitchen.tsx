@@ -4,12 +4,12 @@ import { ChefHat, Printer, PrinterCheck, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import type { KitchenOrder } from '@/hooks/useKitchenOrders';
-import { useBluetoothPrinter } from '@/hooks/useBluetoothPrinter';
+import { usePrinter, type PrinterStatus } from '@/contexts/PrinterContext';
 import type { ComandaOrder } from '@/lib/printer/ticket';
 import { KitchenOrderCard } from '@/components/kitchen/KitchenOrderCard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
-/** Adapta una orden de cocina al formato de comanda imprimible. */
+/** Adapta una orden de cocina al formato de comanda imprimible (reimpresión). */
 function toComanda(order: KitchenOrder): ComandaOrder {
   return {
     id: order.id,
@@ -33,23 +33,9 @@ function toComanda(order: KitchenOrder): ComandaOrder {
 }
 
 export function Kitchen() {
-  const { status, deviceName, error, connect, disconnect, printComanda } = useBluetoothPrinter();
+  const { status, deviceName, error, connect, disconnect, printOrder } = usePrinter();
+  const { orders, loading, advanceOrder } = useKitchenOrders();
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
-
-  // Al llegar pedidos nuevos con items, imprimir su comanda (si hay impresora).
-  const handleNewOrders = useCallback(
-    (newOrders: KitchenOrder[]) => {
-      if (status !== 'connected') return;
-      for (const order of newOrders) {
-        printComanda(toComanda(order))
-          .then(() => toast.success(`Comanda impresa #${order.daily_order_number ?? ''}`.trim()))
-          .catch((e) => toast.error(`No se pudo imprimir: ${e.message}`));
-      }
-    },
-    [status, printComanda],
-  );
-
-  const { orders, loading, advanceOrder } = useKitchenOrders({ onNewOrders: handleNewOrders });
 
   useEffect(() => {
     if (error) toast.error(error);
@@ -66,18 +52,18 @@ export function Kitchen() {
     }
   };
 
-  /** Reimprime manualmente una comanda (botón en la tarjeta / long-press futuro). */
+  /** Reimpresión manual de una comanda. */
   const reprint = useCallback(
     (order: KitchenOrder) => {
       if (status !== 'connected') {
         toast.error('Conecta la impresora primero');
         return;
       }
-      printComanda(toComanda(order))
+      printOrder(toComanda(order))
         .then(() => toast.success('Comanda reimpresa'))
         .catch((e) => toast.error(`No se pudo imprimir: ${e.message}`));
     },
-    [status, printComanda],
+    [status, printOrder],
   );
 
   if (loading) {
@@ -151,7 +137,7 @@ function PrinterButton({
   onConnect,
   onDisconnect,
 }: {
-  status: ReturnType<typeof useBluetoothPrinter>['status'];
+  status: PrinterStatus;
   deviceName: string | null;
   onConnect: () => void;
   onDisconnect: () => void;

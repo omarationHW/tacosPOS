@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { RoleRedirect } from '@/components/RoleRedirect';
 import { BusinessLineGuard } from '@/components/BusinessLineGuard';
+import { PrinterProvider } from '@/contexts/PrinterContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Login } from '@/pages/Login';
 import { BusinessLineSelect } from '@/pages/BusinessLineSelect';
@@ -61,7 +62,9 @@ export function App() {
           element={
             <ProtectedRoute>
               <BusinessLineGuard>
-                <AppLayout />
+                <PrinterProvider>
+                  <AppLayout />
+                </PrinterProvider>
               </BusinessLineGuard>
             </ProtectedRoute>
           }

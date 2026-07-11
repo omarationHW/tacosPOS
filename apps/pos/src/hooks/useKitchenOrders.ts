@@ -60,17 +60,12 @@ function playNewOrderSound() {
   }
 }
 
-export function useKitchenOrders(options?: { onNewOrders?: (orders: KitchenOrder[]) => void }) {
+export function useKitchenOrders() {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const prevOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
-  // Pedidos ya avisados para impresión (con items). Evita reimprimir el backlog
-  // al abrir cocina y evita duplicados por refetch.
-  const reportedOrderIdsRef = useRef<Set<string>>(new Set());
-  const onNewOrdersRef = useRef(options?.onNewOrders);
-  onNewOrdersRef.current = options?.onNewOrders;
   const { activeBusinessLine } = useBusinessLine();
 
   const fetchOrders = useCallback(async () => {
@@ -147,35 +142,12 @@ export function useKitchenOrders(options?: { onNewOrders?: (orders: KitchenOrder
         }
       }
     }
-
-    // Detectar pedidos nuevos imprimibles (con items) y avisar una sola vez.
-    if (!initialLoadDoneRef.current) {
-      // Primer load: marcar el backlog como ya reportado (no reimprimir).
-      for (const o of normalized) reportedOrderIdsRef.current.add(o.id);
-    } else {
-      const fresh = normalized.filter(
-        (o) => o.order_items.length > 0 && !reportedOrderIdsRef.current.has(o.id),
-      );
-      if (fresh.length > 0) {
-        fresh.forEach((o) => reportedOrderIdsRef.current.add(o.id));
-        onNewOrdersRef.current?.(fresh);
-      }
-    }
-
     prevOrderIdsRef.current = currentIds;
     initialLoadDoneRef.current = true;
 
     setOrders(normalized);
     setLoading(false);
   }, [activeBusinessLine]);
-
-  // Al cambiar de línea de negocio, tratar como carga inicial: re-marcar el
-  // backlog como ya reportado para no reimprimir comandas de la otra línea.
-  useEffect(() => {
-    initialLoadDoneRef.current = false;
-    reportedOrderIdsRef.current.clear();
-    prevOrderIdsRef.current.clear();
-  }, [activeBusinessLine?.id]);
 
   useEffect(() => {
     fetchOrders();
