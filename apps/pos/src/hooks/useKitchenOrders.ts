@@ -49,6 +49,21 @@ export function getOrderPhase(order: KitchenOrder): OrderPhase {
   return 'done';
 }
 
+/** True si el pedido contiene productos "por kilo" (nombre con "kilo"). */
+export function orderHasKiloItems(order: KitchenOrder): boolean {
+  return order.order_items.some(
+    (i) => i.status !== 'cancelled' && i.product.name.toLowerCase().includes('kilo'),
+  );
+}
+
+/** Total actual del pedido (suma de subtotales de items no cancelados). */
+export function orderCurrentTotal(order: KitchenOrder): number {
+  const sum = order.order_items
+    .filter((i) => i.status !== 'cancelled')
+    .reduce((s, i) => s + (i.subtotal ?? 0), 0);
+  return Math.round(sum * 100) / 100;
+}
+
 function playNewOrderSound() {
   try {
     const audio = new Audio('/sounds/new-order.wav');
@@ -218,5 +233,55 @@ export function useKitchenOrders() {
     await fetchOrders();
   }
 
-  return { orders, loading, advanceOrder, refetch: fetchOrders };
+  /**
+   * Entrega un pedido "por kilo" capturando el precio final real (por peso).
+   * Ajusta el/los item(s) de kilo (subtotal + unit_price) y el subtotal/total
+   * del pedido, luego lo entrega. El total se aplica vía `subtotal` porque el
+   * trigger enforce_no_iva deriva orders.total del subtotal en pedidos no pagados.
+   * Requiere rol admin/cashier (RLS de orders). Lanza en error.
+   */
+  async function deliverWithFinalTotal(order: KitchenOrder, finalTotal: number) {
+    const active = order.order_items.filter((i) => i.status !== 'cancelled');
+    const isKilo = (i: KitchenOrderItem) => i.product.name.toLowerCase().includes('kilo');
+    const kiloItems = active.filter(isKilo);
+    const nonKiloSubtotal = active
+      .filter((i) => !isKilo(i))
+      .reduce((s, i) => s + i.subtotal, 0);
+    const kiloTarget = Math.max(0, Math.round((finalTotal - nonKiloSubtotal) * 100) / 100);
+    const currentKiloSum = kiloItems.reduce((s, i) => s + i.subtotal, 0);
+
+    // Repartir el precio final entre los items de kilo (proporcional; el último
+    // absorbe el redondeo restante para que la suma cuadre con finalTotal).
+    let assigned = 0;
+    for (let idx = 0; idx < kiloItems.length; idx++) {
+      const ki = kiloItems[idx];
+      let newSubtotal: number;
+      if (idx === kiloItems.length - 1) {
+        newSubtotal = Math.round((kiloTarget - assigned) * 100) / 100;
+      } else {
+        const share = currentKiloSum > 0 ? ki.subtotal / currentKiloSum : 1 / kiloItems.length;
+        newSubtotal = Math.round(kiloTarget * share * 100) / 100;
+        assigned += newSubtotal;
+      }
+      const newUnit =
+        ki.quantity > 0 ? Math.round((newSubtotal / ki.quantity) * 100) / 100 : newSubtotal;
+      const { error } = await supabase
+        .from('order_items')
+        .update({ subtotal: newSubtotal, unit_price: newUnit })
+        .eq('id', ki.id);
+      if (error) throw error;
+    }
+
+    // Subtotal/total del pedido (el trigger deriva total de subtotal si no pagado).
+    const { error: oErr } = await supabase
+      .from('orders')
+      .update({ subtotal: finalTotal, tax: 0, total: finalTotal })
+      .eq('id', order.id);
+    if (oErr) throw oErr;
+
+    // Entregar (items -> delivered, orden -> completed) + refetch.
+    await advanceOrder(order);
+  }
+
+  return { orders, loading, advanceOrder, deliverWithFinalTotal, refetch: fetchOrders };
 }

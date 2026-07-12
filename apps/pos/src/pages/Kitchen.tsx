@@ -2,11 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChefHat, Printer, PrinterCheck, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useKitchenOrders } from '@/hooks/useKitchenOrders';
+import {
+  useKitchenOrders,
+  getOrderPhase,
+  orderHasKiloItems,
+  orderCurrentTotal,
+} from '@/hooks/useKitchenOrders';
 import type { KitchenOrder } from '@/hooks/useKitchenOrders';
 import { usePrinter, type PrinterStatus } from '@/contexts/PrinterContext';
 import type { ComandaOrder } from '@/lib/printer/ticket';
 import { KitchenOrderCard } from '@/components/kitchen/KitchenOrderCard';
+import { KiloTotalModal } from '@/components/kitchen/KiloTotalModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 /** Adapta una orden de cocina al formato de comanda imprimible (reimpresión). */
@@ -35,19 +41,41 @@ function toComanda(order: KitchenOrder): ComandaOrder {
 
 export function Kitchen() {
   const { status, deviceName, error, connect, disconnect, printOrder } = usePrinter();
-  const { orders, loading, advanceOrder } = useKitchenOrders();
+  const { orders, loading, advanceOrder, deliverWithFinalTotal } = useKitchenOrders();
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  // Pedido por kilo pendiente de capturar precio final al entregar.
+  const [kiloOrder, setKiloOrder] = useState<KitchenOrder | null>(null);
 
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
 
   const handleAdvance = async (order: KitchenOrder) => {
+    // Al ENTREGAR un pedido por kilo, primero se captura el precio final (peso).
+    if (getOrderPhase(order) === 'ready' && orderHasKiloItems(order)) {
+      setKiloOrder(order);
+      return;
+    }
     setBusyOrderId(order.id);
     try {
       await advanceOrder(order);
     } catch {
       toast.error('Error al actualizar la orden');
+    } finally {
+      setBusyOrderId(null);
+    }
+  };
+
+  const handleKiloConfirm = async (finalTotal: number) => {
+    if (!kiloOrder) return;
+    const order = kiloOrder;
+    setBusyOrderId(order.id);
+    try {
+      await deliverWithFinalTotal(order, finalTotal);
+      toast.success(`Pedido entregado — $${finalTotal.toFixed(2)}`);
+      setKiloOrder(null);
+    } catch {
+      toast.error('No se pudo guardar el precio. Revisa permisos (cajero/admin).');
     } finally {
       setBusyOrderId(null);
     }
@@ -128,6 +156,19 @@ export function Kitchen() {
           </AnimatePresence>
         </motion.div>
       )}
+
+      <KiloTotalModal
+        open={!!kiloOrder}
+        currentTotal={kiloOrder ? orderCurrentTotal(kiloOrder) : 0}
+        orderLabel={
+          kiloOrder?.daily_order_number != null
+            ? `Pedido #${kiloOrder.daily_order_number}`
+            : (kiloOrder?.customer_name ?? 'Pedido')
+        }
+        busy={!!kiloOrder && busyOrderId === kiloOrder.id}
+        onConfirm={handleKiloConfirm}
+        onCancel={() => setKiloOrder(null)}
+      />
     </div>
   );
 }
