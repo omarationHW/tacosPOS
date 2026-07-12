@@ -59,6 +59,7 @@ function normalizeItem(row) {
     id: row.id,
     quantity: row.quantity,
     notes: row.notes,
+    subtotal: row.subtotal ?? 0,
     product_name: product?.name ?? 'Producto',
     modifiers,
   };
@@ -93,7 +94,7 @@ async function printOrder(orderId, newItemIds) {
   const { data: itemRows, error: itemsErr } = await supabase
     .from('order_items')
     .select(`
-      id, quantity, status, notes, sent_to_kitchen_at,
+      id, quantity, status, notes, subtotal, sent_to_kitchen_at,
       product:products ( name ),
       modifiers:order_item_modifiers (
         modifier_name,

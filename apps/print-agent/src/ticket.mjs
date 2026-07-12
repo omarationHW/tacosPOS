@@ -75,6 +75,13 @@ export function formatComanda({ restaurantName, order, items, appended = false }
   }
   t += SEP + '\n';
 
+  // Total (suma de los productos de esta comanda)
+  const total = items.reduce((s, it) => s + (it.subtotal ?? 0), 0);
+  if (total > 0) {
+    t += CMD.BOLD_ON + formatRow('TOTAL:', `$${total.toFixed(2)}`) + '\n' + CMD.BOLD_OFF;
+    t += SEP + '\n';
+  }
+
   // Nota del pedido
   if (order.notes) {
     t += `Nota: ${order.notes}\n`;
@@ -84,7 +91,7 @@ export function formatComanda({ restaurantName, order, items, appended = false }
   // Pie
   const stamp = appended ? '*** AGREGADO ***' : '*** NUEVA ***';
   t += CMD.CENTER + CMD.BOLD_ON + stamp + '\n' + CMD.BOLD_OFF + CMD.LEFT;
-  t += CMD.FEED(4);
+  t += CMD.FEED(8);
   t += CMD.CUT;
 
   return t;

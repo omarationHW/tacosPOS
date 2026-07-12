@@ -7,6 +7,7 @@ export interface KitchenOrderItem {
   quantity: number;
   status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   notes: string | null;
+  subtotal: number;
   sent_to_kitchen_at: string | null;
   product: { name: string };
   modifiers: { id: string; modifier_name: string; group_name: string | null }[];
@@ -88,6 +89,7 @@ export function useKitchenOrders() {
           quantity,
           status,
           notes,
+          subtotal,
           sent_to_kitchen_at,
           product:products ( name ),
           modifiers:order_item_modifiers (

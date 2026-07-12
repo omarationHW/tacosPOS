@@ -37,6 +37,7 @@ function normalizeItem(row: any) {
     quantity: row.quantity as number,
     product_name: product?.name ?? 'Producto',
     notes: row.notes as string | null,
+    subtotal: (row.subtotal ?? 0) as number,
     modifiers,
   };
 }
@@ -120,7 +121,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
       const { data: itemRows } = await supabase
         .from('order_items')
         .select(
-          `id, quantity, status, notes,
+          `id, quantity, status, notes, subtotal,
            product:products ( name ),
            modifiers:order_item_modifiers (
              modifier_name,
@@ -155,6 +156,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
           quantity: i.quantity,
           product_name: i.product_name,
           notes: i.notes,
+          subtotal: i.subtotal,
           modifiers: i.modifiers,
         })),
         appended,

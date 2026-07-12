@@ -11,6 +11,8 @@ export interface ComandaItem {
   product_name: string;
   notes?: string | null;
   modifiers?: { name: string }[];
+  /** Total de la línea (precio × cantidad, incluye modificadores). */
+  subtotal?: number;
 }
 
 export interface ComandaOrder {
@@ -80,6 +82,13 @@ export function buildComanda(order: ComandaOrder): Uint8Array {
   }
   parts.push(SEP + '\n');
 
+  // Total (suma de los productos de esta comanda)
+  const total = order.items.reduce((sum, it) => sum + (it.subtotal ?? 0), 0);
+  if (total > 0) {
+    parts.push(CMD.BOLD_ON, formatRow('TOTAL:', `$${total.toFixed(2)}`) + '\n', CMD.BOLD_OFF);
+    parts.push(SEP + '\n');
+  }
+
   // Nota del pedido
   if (order.notes) {
     parts.push(`Nota: ${order.notes}\n`);
@@ -89,7 +98,8 @@ export function buildComanda(order: ComandaOrder): Uint8Array {
   // Pie
   const stamp = order.appended ? '*** AGREGADO ***' : '*** NUEVA ***';
   parts.push(CMD.CENTER, CMD.BOLD_ON, centerText(stamp) + '\n', CMD.BOLD_OFF, CMD.LEFT);
-  parts.push(CMD.feed(4), CMD.CUT);
+  // Pie más largo para que sea fácil de cortar/tomar.
+  parts.push(CMD.feed(8), CMD.CUT);
 
   return build(parts);
 }
