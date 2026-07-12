@@ -14,6 +14,16 @@ const ORDER_TYPE_LABEL = {
   delivery: 'A DOMICILIO',
 };
 
+// Grupos que se ocultan en "Comer Aquí" (igual que la pantalla de cocina).
+// "Con todo" pertenece a "Verdura".
+const HIDDEN_GROUPS_DINE_IN = new Set(['verdura', 'acompañamientos']);
+
+function visibleModifiers(modifiers, orderType) {
+  const mods = modifiers ?? [];
+  if (orderType !== 'dine_in') return mods;
+  return mods.filter((m) => !HIDDEN_GROUPS_DINE_IN.has((m.group ?? '').trim().toLowerCase()));
+}
+
 /** Hora corta HH:MM (24h). */
 function shortTime(iso) {
   if (!iso) return '';
@@ -68,7 +78,7 @@ export function formatComanda({ restaurantName, order, items, appended = false }
   t += SEP + '\n';
   for (const item of items) {
     t += CMD.BOLD_ON + `${item.quantity}x ${item.product_name}\n` + CMD.BOLD_OFF;
-    for (const mod of item.modifiers ?? []) {
+    for (const mod of visibleModifiers(item.modifiers, order.order_type)) {
       t += `   + ${mod.name}\n`;
     }
     if (item.notes) t += `   >> ${item.notes}\n`;

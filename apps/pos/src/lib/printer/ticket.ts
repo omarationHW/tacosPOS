@@ -10,9 +10,22 @@ export interface ComandaItem {
   quantity: number;
   product_name: string;
   notes?: string | null;
-  modifiers?: { name: string }[];
+  modifiers?: { name: string; group?: string | null }[];
   /** Total de la línea (precio × cantidad, incluye modificadores). */
   subtotal?: number;
+}
+
+// Grupos que se ocultan en pedidos "Comer Aquí" (dine_in), igual que en la
+// pantalla de cocina (KitchenItemRow). "Con todo" pertenece a "Verdura".
+const HIDDEN_GROUPS_DINE_IN = new Set(['verdura', 'acompañamientos']);
+
+function visibleModifiers(
+  modifiers: { name: string; group?: string | null }[] | undefined,
+  orderType: string,
+) {
+  const mods = modifiers ?? [];
+  if (orderType !== 'dine_in') return mods;
+  return mods.filter((m) => !HIDDEN_GROUPS_DINE_IN.has((m.group ?? '').trim().toLowerCase()));
 }
 
 export interface ComandaOrder {
@@ -77,7 +90,7 @@ export function buildComanda(order: ComandaOrder): Uint8Array {
   parts.push(SEP + '\n');
   for (const item of order.items) {
     parts.push(CMD.BOLD_ON, `${item.quantity}x ${item.product_name}\n`, CMD.BOLD_OFF);
-    for (const mod of item.modifiers ?? []) parts.push(`   + ${mod.name}\n`);
+    for (const mod of visibleModifiers(item.modifiers, order.order_type)) parts.push(`   + ${mod.name}\n`);
     if (item.notes) parts.push(`   >> ${item.notes}\n`);
   }
   parts.push(SEP + '\n');

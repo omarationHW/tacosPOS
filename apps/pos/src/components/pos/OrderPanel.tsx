@@ -251,13 +251,31 @@ export function OrderPanel({
             </span>
           </div>
         ) : autoNumber ? (
-          <div className="flex items-center gap-2 rounded-lg border border-dashed border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent-soft)] px-3 py-1.5">
-            <span className="font-display text-xs font-semibold uppercase tracking-wider text-[color:var(--color-accent)]">
-              Pedido #
-            </span>
-            <span className="text-xs text-[color:var(--color-fg-muted)]">
-              Se asigna automáticamente al enviar
-            </span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent-soft)] px-3 py-1.5">
+              <span className="font-display text-xs font-semibold uppercase tracking-wider text-[color:var(--color-accent)]">
+                Pedido #
+              </span>
+              <span className="text-xs text-[color:var(--color-fg-muted)]">
+                Se asigna automáticamente al enviar
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="customer-name" className="shrink-0 text-xs font-medium uppercase tracking-wide text-[color:var(--color-fg-subtle)]">
+                Nombre
+              </label>
+              <input
+                id="customer-name"
+                type="text"
+                value={customerName}
+                onChange={(e) => onCustomerNameChange(e.target.value)}
+                placeholder="Opcional..."
+                className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm
+                  text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)]
+                  focus:border-[color:var(--color-accent)] focus:outline-none
+                  focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+              />
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -269,7 +287,7 @@ export function OrderPanel({
               type="text"
               value={customerName}
               onChange={(e) => onCustomerNameChange(e.target.value)}
-              placeholder="Nombre..."
+              placeholder="Nombre (opcional)..."
               className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm
                 text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)]
                 focus:border-[color:var(--color-accent)] focus:outline-none

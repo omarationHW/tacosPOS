@@ -169,6 +169,7 @@ export function Cuentas() {
           )}
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {tabs.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[color:var(--color-fg-subtle)]">
             <Receipt size={48} strokeWidth={1.5} />
@@ -226,6 +227,7 @@ export function Cuentas() {
             </AnimatePresence>
           </motion.div>
         )}
+        </div>
       </div>
 
       {/* Right: detail */}

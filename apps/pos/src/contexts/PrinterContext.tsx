@@ -31,7 +31,12 @@ const DEBOUNCE_MS = 1200; // juntar item + modificadores antes de imprimir
 function normalizeItem(row: any) {
   const product = Array.isArray(row.product) ? row.product[0] : row.product;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const modifiers = (row.modifiers ?? []).map((m: any) => ({ name: m.modifier_name }));
+  const modifiers = (row.modifiers ?? []).map((m: any) => {
+    const modRel = Array.isArray(m.modifier) ? m.modifier[0] : m.modifier;
+    const groupRel = modRel?.modifier_group;
+    const group = Array.isArray(groupRel) ? groupRel[0] : groupRel;
+    return { name: m.modifier_name as string, group: (group?.name ?? null) as string | null };
+  });
   return {
     id: row.id as string,
     quantity: row.quantity as number,

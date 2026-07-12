@@ -219,11 +219,7 @@ export function POS() {
       return;
     }
 
-    // Carnitas se autonumera; hamburguesas requiere nombre.
-    if (!isCarnitasLine && !customerName.trim()) {
-      toast.error('Ingresa el nombre del cliente');
-      return;
-    }
+    // El nombre del cliente es OPCIONAL para todos los tipos de pedido.
 
     // Derive business line from active selection or from first product in cart
     const orderLineId = resolvedLineId
@@ -249,11 +245,13 @@ export function POS() {
       const result = await createOrder({
         items: cart,
         createdBy: user.id,
-        customerName: isCarnitasLine ? '' : customerName.trim(),
+        customerName: customerName.trim(),
         businessLineId: orderLineId,
         orderType,
         notes,
         pickupAt,
+        // Carnitas se autonumera: cada pedido separado, sin fusionar por nombre.
+        coalesceByName: !isCarnitasLine,
       });
 
       const total = cart.reduce((sum, item) => {
@@ -263,7 +261,7 @@ export function POS() {
 
       const orderLabel = result.dailyOrderNumber
         ? `Pedido #${result.dailyOrderNumber}`
-        : customerName.trim();
+        : customerName.trim() || 'Pedido';
 
       if (result.appended) {
         toast.success(

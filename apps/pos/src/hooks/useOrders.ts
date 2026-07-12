@@ -15,6 +15,12 @@ interface CreateOrderParams {
   notes?: string;
   /** ISO timestamp opcional para hora de entrega (takeout/delivery). */
   pickupAt?: string | null;
+  /**
+   * Si es false, NO fusiona con un pedido abierto del mismo nombre (cada pedido
+   * queda separado). Se usa en carnitas (autonumerado) para no juntar por nombre.
+   * Default: true.
+   */
+  coalesceByName?: boolean;
 }
 
 interface CreateOrderResult {
@@ -62,15 +68,15 @@ async function upsertCustomerByName(customerName: string): Promise<string | null
 }
 
 export function useOrders() {
-  async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes, pickupAt }: CreateOrderParams): Promise<CreateOrderResult> {
+  async function createOrder({ items, createdBy, customerName, businessLineId, tableId, orderType, notes, pickupAt, coalesceByName = true }: CreateOrderParams): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items en el pedido');
 
     // Carnitas orders use auto-numbering; never coalesce them by name.
     const trimmedName = customerName.trim();
 
     // Check for existing open order for the same customer + business line.
-    // Skip the lookup entirely when there's no name (carnitas auto-numbered).
-    if (trimmedName) {
+    // Skip when there's no name, or cuando coalesceByName es false (carnitas).
+    if (coalesceByName && trimmedName) {
       const { data: existing } = await supabase
         .from('orders')
         .select('id, subtotal, tax, total, daily_order_number')
