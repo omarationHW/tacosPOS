@@ -44,6 +44,9 @@ scripts/
 skills-lock.json
 PROGRESS.md
 
+# Respaldos de datos (contienen datos de clientes/ventas)
+backup-*.json
+
 # Misc
 *.tsbuildinfo
 .turbo/
