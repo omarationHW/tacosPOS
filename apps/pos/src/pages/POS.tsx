@@ -14,6 +14,7 @@ import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { OrderPanel, type CartItem, type OrderType, type CartItemModifier } from '@/components/pos/OrderPanel';
 import { ModifierModal } from '@/components/pos/ModifierModal';
+import { MontoModal, isCustomMontoProduct } from '@/components/pos/MontoModal';
 import { ProductSearchCommand } from '@/components/pos/ProductSearchCommand';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 
@@ -89,6 +90,8 @@ export function POS() {
 
   // Modifier modal state
   const [modifierProduct, setModifierProduct] = useState<ProductWithRelations | null>(null);
+  // Producto de "monto libre" (precio 0 en categoría de montos): abre modal de monto.
+  const [montoProduct, setMontoProduct] = useState<ProductWithRelations | null>(null);
 
   const loading = productsLoading || categoriesLoading;
 
@@ -112,6 +115,11 @@ export function POS() {
   }, [products, selectedCategory, effectiveLineId]);
 
   const addToCart = (product: ProductWithRelations) => {
+    // "Monto libre" de carnitas: el cajero escribe la cantidad de $ y el corte.
+    if (isCustomMontoProduct(product)) {
+      setMontoProduct(product);
+      return;
+    }
     const hasModifiers = product.modifier_groups && product.modifier_groups.length > 0;
     if (hasModifiers) {
       setModifierProduct(product);
@@ -120,11 +128,25 @@ export function POS() {
     addToCartWithModifiers(product, []);
   };
 
-  const addToCartWithModifiers = (product: ProductWithRelations, modifiers: CartItemModifier[]) => {
-    const cartKey = makeCartKey(product.id, modifiers);
+  const addToCartWithModifiers = (
+    product: ProductWithRelations,
+    modifiers: CartItemModifier[],
+    /** Precio unitario forzado (monto libre). Si se omite, usa product.price. */
+    priceOverride?: number,
+    /** Nombre a mostrar en el carrito (monto libre). */
+    displayName?: string,
+    /** Nota inicial del item (monto libre: para que el monto se vea en Cocina). */
+    initialNotes?: string,
+  ) => {
+    const price = priceOverride ?? product.price;
+    // El monto libre nunca se fusiona con otro: cada monto es su propia línea.
+    const cartKey =
+      priceOverride != null
+        ? `${product.id}|${makeCartKey(product.id, modifiers)}|${price}|${Date.now()}`
+        : makeCartKey(product.id, modifiers);
 
     setCart((prev) => {
-      const existing = prev.find((item) => item.cartKey === cartKey);
+      const existing = priceOverride == null ? prev.find((item) => item.cartKey === cartKey) : undefined;
       if (existing) {
         return prev.map((item) =>
           item.cartKey === cartKey
@@ -136,10 +158,11 @@ export function POS() {
         ...prev,
         {
           productId: product.id,
-          name: product.name,
-          price: product.price,
+          name: displayName ?? product.name,
+          price,
           quantity: 1,
           modifiers,
+          notes: initialNotes,
           cartKey,
         },
       ];
@@ -150,6 +173,15 @@ export function POS() {
     if (modifierProduct) {
       addToCartWithModifiers(modifierProduct, modifiers);
       setModifierProduct(null);
+    }
+  };
+
+  const handleMontoConfirm = (amount: number, modifiers: CartItemModifier[]) => {
+    if (montoProduct) {
+      // Nombre y nota con el monto para que se vea en carrito, Cocina y comanda.
+      const label = `$${amount % 1 === 0 ? amount : amount.toFixed(2)} de carnitas`;
+      addToCartWithModifiers(montoProduct, modifiers, amount, label, label);
+      setMontoProduct(null);
     }
   };
 
@@ -357,6 +389,15 @@ export function POS() {
           orderType={orderType}
           onConfirm={handleModifierConfirm}
           onClose={() => setModifierProduct(null)}
+        />
+      )}
+
+      {montoProduct && (
+        <MontoModal
+          product={montoProduct}
+          orderType={orderType}
+          onConfirm={handleMontoConfirm}
+          onClose={() => setMontoProduct(null)}
         />
       )}
     </div>
