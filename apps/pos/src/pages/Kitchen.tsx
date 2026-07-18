@@ -8,11 +8,14 @@ import {
   orderHasKiloItems,
   orderCurrentTotal,
 } from '@/hooks/useKitchenOrders';
-import type { KitchenOrder } from '@/hooks/useKitchenOrders';
+import type { KitchenOrder, KitchenOrderItem } from '@/hooks/useKitchenOrders';
+import { useProducts } from '@/hooks/useProducts';
 import { usePrinter, type PrinterStatus } from '@/contexts/PrinterContext';
 import type { ComandaOrder } from '@/lib/printer/ticket';
 import { KitchenOrderCard } from '@/components/kitchen/KitchenOrderCard';
 import { KiloTotalModal } from '@/components/kitchen/KiloTotalModal';
+import { ModifierModal } from '@/components/pos/ModifierModal';
+import type { CartItemModifier } from '@/components/pos/OrderPanel';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 /** Adapta una orden de cocina al formato de comanda imprimible (reimpresión). */
@@ -41,14 +44,82 @@ function toComanda(order: KitchenOrder): ComandaOrder {
 
 export function Kitchen() {
   const { status, deviceName, error, connect, disconnect, printOrder } = usePrinter();
-  const { orders, loading, advanceOrder, deliverWithFinalTotal } = useKitchenOrders();
+  const {
+    orders,
+    loading,
+    advanceOrder,
+    deliverWithFinalTotal,
+    adjustItemQuantity,
+    cancelItem,
+    updateItemModifiers,
+  } = useKitchenOrders();
+  const { products } = useProducts();
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  // Item cuyo modal de opciones (modifiers) está abierto para editar.
+  const [editingItem, setEditingItem] = useState<{ item: KitchenOrderItem; orderId: string; orderType: KitchenOrder['order_type'] } | null>(null);
   // Pedido por kilo pendiente de capturar precio final al entregar.
   const [kiloOrder, setKiloOrder] = useState<KitchenOrder | null>(null);
+
+  const editingProduct = editingItem
+    ? products.find((p) => p.id === editingItem.item.product_id) ?? null
+    : null;
 
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
+
+  const handleAdjustItemQty = async (orderId: string, item: KitchenOrderItem, newQty: number) => {
+    setBusyItemId(item.id);
+    try {
+      await adjustItemQuantity(item.id, orderId, newQty);
+      if (newQty <= 0) toast.success('Item quitado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar item');
+    } finally {
+      setBusyItemId(null);
+    }
+  };
+
+  const handleRemoveItem = async (orderId: string, item: KitchenOrderItem) => {
+    setBusyItemId(item.id);
+    try {
+      await cancelItem(item.id, orderId);
+      toast.success('Item quitado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al quitar item');
+    } finally {
+      setBusyItemId(null);
+    }
+  };
+
+  const handleEditItem = (orderId: string, item: KitchenOrderItem) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!products.find((p) => p.id === item.product_id)) {
+      toast.error('No se pudo cargar el producto para editar');
+      return;
+    }
+    setEditingItem({ item, orderId, orderType: order?.order_type ?? 'dine_in' });
+  };
+
+  const handleConfirmModifierEdit = async (mods: CartItemModifier[]) => {
+    if (!editingItem || !editingProduct) return;
+    setBusyItemId(editingItem.item.id);
+    try {
+      await updateItemModifiers(
+        editingItem.item.id,
+        editingItem.orderId,
+        editingProduct.price,
+        mods.map((m) => ({ modifierId: m.modifierId, name: m.name, priceOverride: m.priceOverride })),
+      );
+      toast.success('Item actualizado');
+      setEditingItem(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar item');
+    } finally {
+      setBusyItemId(null);
+    }
+  };
 
   const handleAdvance = async (order: KitchenOrder) => {
     // Al ENTREGAR un pedido por kilo, primero se captura el precio final (peso).
@@ -149,6 +220,10 @@ export function Kitchen() {
                   orderNumber={index + 1}
                   onAdvance={handleAdvance}
                   onReprint={status === 'connected' ? reprint : undefined}
+                  onAdjustItemQty={handleAdjustItemQty}
+                  onRemoveItem={handleRemoveItem}
+                  onEditItem={handleEditItem}
+                  busyItemId={busyItemId}
                   busy={busyOrderId === order.id}
                 />
               </motion.div>
@@ -169,6 +244,17 @@ export function Kitchen() {
         onConfirm={handleKiloConfirm}
         onCancel={() => setKiloOrder(null)}
       />
+
+      {editingItem && editingProduct && (
+        <ModifierModal
+          product={editingProduct}
+          orderType={editingItem.orderType}
+          initialModifierIds={editingItem.item.modifiers.map((m) => m.modifierId)}
+          submitLabel="Guardar"
+          onConfirm={handleConfirmModifierEdit}
+          onClose={() => setEditingItem(null)}
+        />
+      )}
     </div>
   );
 }

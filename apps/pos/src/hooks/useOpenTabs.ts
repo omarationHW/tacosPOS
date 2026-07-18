@@ -92,9 +92,11 @@ export function useOpenTabs() {
 
       if (dailyNumber != null) {
         // Carnitas: cada orden tiene su propio número, no se agrupa por nombre.
+        // Incluye el nombre del cliente (si lo hay) para identificar el pedido.
         key = `order-${order.id}`;
         const typeLabel = orderType === 'takeout' ? ' · Llevar' : orderType === 'delivery' ? ' · Domicilio' : '';
-        mesa = `Pedido #${dailyNumber}${typeLabel}`;
+        const namePart = customerName?.trim() ? ` · ${customerName.trim()}` : '';
+        mesa = `Pedido #${dailyNumber}${namePart}${typeLabel}`;
       } else if (orderType === 'takeout' || orderType === 'delivery' || !customerName) {
         const prefix = orderType === 'delivery' ? 'delivery' : 'takeout';
         const label = orderType === 'delivery' ? 'A Domicilio' : 'Para Llevar';

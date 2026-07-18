@@ -1,3 +1,4 @@
+import { Minus, Plus, Trash2, Pencil } from 'lucide-react';
 import type { KitchenOrderItem, KitchenOrder } from '@/hooks/useKitchenOrders';
 
 const statusConfig = {
@@ -17,9 +18,25 @@ const HIDDEN_GROUPS_DINE_IN = new Set(['verdura', 'acompañamientos']);
 interface KitchenItemRowProps {
   item: KitchenOrderItem;
   orderType: KitchenOrder['order_type'];
+  /** En modo edición se muestran controles de cantidad / quitar / opciones. */
+  editing?: boolean;
+  busy?: boolean;
+  onIncrement?: () => void;
+  onDecrement?: () => void;
+  onDelete?: () => void;
+  onEdit?: () => void;
 }
 
-export function KitchenItemRow({ item, orderType }: KitchenItemRowProps) {
+export function KitchenItemRow({
+  item,
+  orderType,
+  editing = false,
+  busy = false,
+  onIncrement,
+  onDecrement,
+  onDelete,
+  onEdit,
+}: KitchenItemRowProps) {
   const config = statusConfig[item.status];
   const allMods = item.modifiers ?? [];
   const mods = orderType === 'dine_in'
@@ -56,6 +73,60 @@ export function KitchenItemRow({ item, orderType }: KitchenItemRowProps) {
         <p className="mt-1 ml-5 text-xs font-semibold italic text-[color:var(--color-accent)]">
           → {item.notes}
         </p>
+      )}
+
+      {editing && (
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onDecrement}
+              disabled={busy}
+              aria-label="Reducir cantidad"
+              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg)] transition-colors hover:bg-[color:var(--color-border)] disabled:cursor-not-allowed disabled:opacity-50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="w-7 text-center font-mono text-sm font-semibold tabular-nums text-[color:var(--color-fg)]">
+              {item.quantity}
+            </span>
+            <button
+              type="button"
+              onClick={onIncrement}
+              disabled={busy}
+              aria-label="Aumentar cantidad"
+              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-[color:var(--color-bg-inset)] text-[color:var(--color-fg)] transition-colors hover:bg-[color:var(--color-border)] disabled:cursor-not-allowed disabled:opacity-50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onEdit}
+              disabled={busy}
+              aria-label="Editar opciones"
+              className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            >
+              <Pencil size={12} />
+              Editar
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              aria-label="Quitar item"
+              className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            >
+              <Trash2 size={12} />
+              Quitar
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

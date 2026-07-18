@@ -4,13 +4,14 @@ import { useBusinessLine } from '@/contexts/BusinessLineContext';
 
 export interface KitchenOrderItem {
   id: string;
+  product_id: string;
   quantity: number;
   status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   notes: string | null;
   subtotal: number;
   sent_to_kitchen_at: string | null;
   product: { name: string };
-  modifiers: { id: string; modifier_name: string; group_name: string | null }[];
+  modifiers: { id: string; modifierId: string; modifier_name: string; group_name: string | null }[];
 }
 
 export interface KitchenOrder {
@@ -101,6 +102,7 @@ export function useKitchenOrders() {
         business_line:business_lines ( name ),
         order_items (
           id,
+          product_id,
           quantity,
           status,
           notes,
@@ -109,6 +111,7 @@ export function useKitchenOrders() {
           product:products ( name ),
           modifiers:order_item_modifiers (
             id,
+            modifier_id,
             modifier_name,
             modifier:modifiers (
               modifier_group:modifier_groups ( name )
@@ -142,6 +145,7 @@ export function useKitchenOrders() {
           const group = Array.isArray(groupRel) ? groupRel[0] : groupRel;
           return {
             id: m.id,
+            modifierId: m.modifier_id,
             modifier_name: m.modifier_name,
             group_name: group?.name ?? null,
           };
@@ -283,5 +287,123 @@ export function useKitchenOrders() {
     await advanceOrder(order);
   }
 
-  return { orders, loading, advanceOrder, deliverWithFinalTotal, refetch: fetchOrders };
+  /**
+   * Recalcula subtotal/total de un pedido sumando solo los items no cancelados.
+   * El trigger orders_enforce_no_iva fuerza tax=0 y total=subtotal automáticamente.
+   */
+  async function recalcOrderTotals(orderId: string) {
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('subtotal, status')
+      .eq('order_id', orderId);
+
+    const subtotal = (items ?? [])
+      .filter((i) => i.status !== 'cancelled')
+      .reduce((s, i) => s + Number(i.subtotal), 0);
+
+    await supabase
+      .from('orders')
+      .update({ subtotal, tax: 0, total: subtotal })
+      .eq('id', orderId);
+  }
+
+  /** Cambia la cantidad de un item. Si quantity <= 0, lo cancela. */
+  async function adjustItemQuantity(orderItemId: string, orderId: string, newQuantity: number) {
+    if (newQuantity <= 0) {
+      return cancelItem(orderItemId, orderId);
+    }
+
+    const { data: item } = await supabase
+      .from('order_items')
+      .select('unit_price')
+      .eq('id', orderItemId)
+      .maybeSingle();
+
+    if (!item) throw new Error('Item no encontrado');
+
+    const newSubtotal = Math.round(Number(item.unit_price) * newQuantity * 100) / 100;
+    // Al editar en cocina el item vuelve a 'pending' para que se re-prepare.
+    const { error } = await supabase
+      .from('order_items')
+      .update({ quantity: newQuantity, subtotal: newSubtotal, status: 'pending' })
+      .eq('id', orderItemId);
+
+    if (error) throw error;
+    await recalcOrderTotals(orderId);
+    await fetchOrders();
+  }
+
+  /** Marca un item como cancelado (no se borra para preservar histórico). */
+  async function cancelItem(orderItemId: string, orderId: string) {
+    const { error } = await supabase
+      .from('order_items')
+      .update({ status: 'cancelled' })
+      .eq('id', orderItemId);
+
+    if (error) throw error;
+    await recalcOrderTotals(orderId);
+    await fetchOrders();
+  }
+
+  /**
+   * Reemplaza los modifiers del item con la lista nueva, recalcula
+   * unit_price (precio base + suma de price_override) y subtotal,
+   * y refresca los totales de la orden.
+   */
+  async function updateItemModifiers(
+    orderItemId: string,
+    orderId: string,
+    productBasePrice: number,
+    newModifiers: { modifierId: string; name: string; priceOverride: number }[],
+  ) {
+    const { error: delErr } = await supabase
+      .from('order_item_modifiers')
+      .delete()
+      .eq('order_item_id', orderItemId);
+    if (delErr) throw delErr;
+
+    if (newModifiers.length > 0) {
+      const rows = newModifiers.map((m) => ({
+        order_item_id: orderItemId,
+        modifier_id: m.modifierId,
+        modifier_name: m.name,
+        price_override: m.priceOverride,
+      }));
+      const { error: insErr } = await supabase
+        .from('order_item_modifiers')
+        .insert(rows);
+      if (insErr) throw insErr;
+    }
+
+    const { data: itemRow } = await supabase
+      .from('order_items')
+      .select('quantity')
+      .eq('id', orderItemId)
+      .maybeSingle();
+    if (!itemRow) throw new Error('Item no encontrado');
+
+    const modSum = newModifiers.reduce((s, m) => s + m.priceOverride, 0);
+    const newUnit = Math.round((productBasePrice + modSum) * 100) / 100;
+    const newSubtotal = Math.round(newUnit * itemRow.quantity * 100) / 100;
+
+    const { error: updErr } = await supabase
+      .from('order_items')
+      .update({ unit_price: newUnit, subtotal: newSubtotal, status: 'pending' })
+      .eq('id', orderItemId);
+    if (updErr) throw updErr;
+
+    await recalcOrderTotals(orderId);
+    await fetchOrders();
+  }
+
+  return {
+    orders,
+    loading,
+    advanceOrder,
+    deliverWithFinalTotal,
+    adjustItemQuantity,
+    cancelItem,
+    updateItemModifiers,
+    refetch: fetchOrders,
+  };
 }

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock, Printer } from 'lucide-react';
+import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock, Printer, Pencil, Check } from 'lucide-react';
 import { KitchenItemRow } from './KitchenItemRow';
 import { getOrderPhase } from '@/hooks/useKitchenOrders';
-import type { KitchenOrder, OrderPhase } from '@/hooks/useKitchenOrders';
+import type { KitchenOrder, KitchenOrderItem, OrderPhase } from '@/hooks/useKitchenOrders';
 
 function minutesAgo(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
@@ -88,17 +88,37 @@ interface KitchenOrderCardProps {
   onAdvance: (order: KitchenOrder) => void;
   /** Si se provee, muestra un botón para reimprimir la comanda. */
   onReprint?: (order: KitchenOrder) => void;
+  /** Si se proveen, habilita editar items (cantidad / quitar / opciones) en la tarjeta. */
+  onAdjustItemQty?: (orderId: string, item: KitchenOrderItem, newQty: number) => void;
+  onRemoveItem?: (orderId: string, item: KitchenOrderItem) => void;
+  onEditItem?: (orderId: string, item: KitchenOrderItem) => void;
+  /** id del order_item que está siendo modificado (para deshabilitar controles). */
+  busyItemId?: string | null;
   busy?: boolean;
 }
 
-export function KitchenOrderCard({ order, orderNumber, onAdvance, onReprint, busy }: KitchenOrderCardProps) {
+export function KitchenOrderCard({
+  order,
+  orderNumber,
+  onAdvance,
+  onReprint,
+  onAdjustItemQty,
+  onRemoveItem,
+  onEditItem,
+  busyItemId,
+  busy,
+}: KitchenOrderCardProps) {
   const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const canEdit = !!(onAdjustItemQty && onRemoveItem && onEditItem);
   const activeItems = order.order_items.filter((i) => i.status !== 'cancelled');
   const phase = getOrderPhase(order);
   const action = phase !== 'done' ? phaseAction[phase] : null;
-  const displayName = order.daily_order_number != null
-    ? `Pedido #${order.daily_order_number}`
-    : (order.customer_name || null);
+  // Muestra número de pedido Y nombre del cliente cuando ambos existen, para
+  // que en pedidos numerados (Carnitas) o para llevar se sepa de quién es.
+  const customerName = order.customer_name?.trim() || null;
+  const numberLabel = order.daily_order_number != null ? `Pedido #${order.daily_order_number}` : null;
+  const displayName = [numberLabel, customerName].filter(Boolean).join(' · ') || null;
   const typeMeta = ORDER_TYPE_META[order.order_type];
   const orderNote = meaningfulOrderNote(order);
   const pickupInfo = formatPickup(order.pickup_at);
@@ -174,7 +194,17 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, onReprint, bus
       <div className="flex-1 overflow-y-auto px-4" style={{ maxHeight: '420px' }}>
         <div className="divide-y divide-[color:var(--color-border)]">
           {activeItems.map((item) => (
-            <KitchenItemRow key={item.id} item={item} orderType={order.order_type} />
+            <KitchenItemRow
+              key={item.id}
+              item={item}
+              orderType={order.order_type}
+              editing={editing && canEdit}
+              busy={busyItemId === item.id}
+              onIncrement={() => onAdjustItemQty?.(order.id, item, item.quantity + 1)}
+              onDecrement={() => onAdjustItemQty?.(order.id, item, item.quantity - 1)}
+              onDelete={() => onRemoveItem?.(order.id, item)}
+              onEdit={() => onEditItem?.(order.id, item)}
+            />
           ))}
         </div>
       </div>
@@ -190,6 +220,22 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, onReprint, bus
         >
           <Plus size={18} />
         </motion.button>
+        {canEdit && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setEditing((e) => !e)}
+            disabled={busy}
+            title={editing ? 'Terminar edición' : 'Editar pedido'}
+            className={`flex shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
+              ${editing
+                ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]'
+                : 'border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] text-[color:var(--color-fg-muted)] hover:border-[color:var(--color-accent)] hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)]'
+              }`}
+          >
+            {editing ? <Check size={18} /> : <Pencil size={18} />}
+          </motion.button>
+        )}
         {onReprint && (
           <motion.button
             whileTap={{ scale: 0.97 }}
@@ -202,7 +248,7 @@ export function KitchenOrderCard({ order, orderNumber, onAdvance, onReprint, bus
             <Printer size={18} />
           </motion.button>
         )}
-        {action && (
+        {action && !editing && (
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => onAdvance(order)}
