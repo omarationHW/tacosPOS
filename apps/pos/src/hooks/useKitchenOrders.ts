@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
+import { effectiveUnitPrice } from '@/lib/pricing';
 
 export interface KitchenOrderItem {
   id: string;
@@ -359,7 +360,7 @@ export function useKitchenOrders() {
     orderItemId: string,
     orderId: string,
     productBasePrice: number,
-    newModifiers: { modifierId: string; name: string; priceOverride: number }[],
+    newModifiers: { modifierId: string; name: string; priceOverride: number; group?: string | null }[],
   ) {
     const { error: delErr } = await supabase
       .from('order_item_modifiers')
@@ -387,8 +388,9 @@ export function useKitchenOrders() {
       .maybeSingle();
     if (!itemRow) throw new Error('Item no encontrado');
 
-    const modSum = newModifiers.reduce((s, m) => s + m.priceOverride, 0);
-    const newUnit = Math.round((productBasePrice + modSum) * 100) / 100;
+    const newUnit = Math.round(
+      effectiveUnitPrice({ price: productBasePrice, modifiers: newModifiers }) * 100,
+    ) / 100;
     const newSubtotal = Math.round(newUnit * itemRow.quantity * 100) / 100;
 
     const { error: updErr } = await supabase

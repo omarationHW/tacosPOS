@@ -111,7 +111,7 @@ export function Kitchen() {
         editingItem.item.id,
         editingItem.orderId,
         editingProduct.price,
-        mods.map((m) => ({ modifierId: m.modifierId, name: m.name, priceOverride: m.priceOverride })),
+        mods.map((m) => ({ modifierId: m.modifierId, name: m.name, priceOverride: m.priceOverride, group: m.group })),
       );
       toast.success('Item actualizado');
       setEditingItem(null);
