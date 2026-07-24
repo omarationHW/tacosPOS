@@ -38,6 +38,8 @@ export interface ComandaOrder {
   pickup_at?: string | null;
   table_name?: string | null;
   business_line_name?: string | null;
+  /** Cajero que tomó la orden. Se imprime como "Atendió:". */
+  cashier_name?: string | null;
   items: ComandaItem[];
   appended?: boolean;
 }
@@ -83,6 +85,7 @@ export function buildComanda(order: ComandaOrder): Uint8Array {
   parts.push(formatRow(`Orden: ${orderLabel}`, tipo) + '\n');
   if (order.table_name) parts.push(`Mesa: ${order.table_name}\n`);
   if (order.customer_name) parts.push(`Cliente: ${order.customer_name}\n`);
+  if (order.cashier_name) parts.push(`Atendio: ${order.cashier_name}\n`);
   parts.push(formatRow('Hora:', shortTime(order.created_at)) + '\n');
   if (order.pickup_at) parts.push(formatRow('Entrega:', shortTime(order.pickup_at)) + '\n');
 

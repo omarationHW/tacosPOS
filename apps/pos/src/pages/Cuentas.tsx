@@ -50,6 +50,7 @@ export function Cuentas() {
           modifierId: m.modifierId,
           name: m.name,
           priceOverride: m.priceOverride,
+          group: m.group,
         })),
       );
       toast.success('Item actualizado');

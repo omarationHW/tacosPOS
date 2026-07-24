@@ -16,6 +16,7 @@ import { OrderPanel, type CartItem, type OrderType, type CartItemModifier } from
 import { ModifierModal } from '@/components/pos/ModifierModal';
 import { MontoModal, isCustomMontoProduct } from '@/components/pos/MontoModal';
 import { ProductSearchCommand } from '@/components/pos/ProductSearchCommand';
+import { effectiveUnitPrice } from '@/lib/pricing';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 
 function makeCartKey(productId: string, modifiers: CartItemModifier[]): string {
@@ -234,10 +235,10 @@ export function POS() {
     if (isAppendMode && appendState) {
       setSubmitting(true);
       try {
-        const total = cart.reduce((sum, item) => {
-          const modTotal = item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
-          return sum + (item.price + modTotal) * item.quantity;
-        }, 0);
+        const total = cart.reduce(
+          (sum, item) => sum + effectiveUnitPrice(item) * item.quantity,
+          0,
+        );
         await appendItemsToOrder(appendState.appendOrderId, cart);
         toast.success(`Items agregados a ${appendState.appendOrderLabel} — +$${total.toFixed(2)}`);
         setCart([]);
@@ -286,10 +287,10 @@ export function POS() {
         coalesceByName: !isCarnitasLine,
       });
 
-      const total = cart.reduce((sum, item) => {
-        const modTotal = item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
-        return sum + (item.price + modTotal) * item.quantity;
-      }, 0);
+      const total = cart.reduce(
+        (sum, item) => sum + effectiveUnitPrice(item) * item.quantity,
+        0,
+      );
 
       const orderLabel = result.dailyOrderNumber
         ? `Pedido #${result.dailyOrderNumber}`

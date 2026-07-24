@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { CartItem, OrderType } from '@/components/pos/OrderPanel';
+import { effectiveUnitPrice } from '@/lib/pricing';
 
 // IVA no se cobra al cliente. La columna `tax` queda en 0 y el total = subtotal.
 // Si en el futuro se reactiva, vuelve a 0.16 y la lógica abajo recalcula.
@@ -31,7 +32,7 @@ interface CreateOrderResult {
 }
 
 function getItemUnitPrice(item: CartItem): number {
-  return item.price + item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
+  return effectiveUnitPrice(item);
 }
 
 /**

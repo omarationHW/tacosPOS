@@ -30,6 +30,7 @@ function toComanda(order: KitchenOrder): ComandaOrder {
     pickup_at: order.pickup_at,
     table_name: order.table_name,
     business_line_name: order.business_line_name,
+    cashier_name: order.cashier_name,
     items: order.order_items
       .filter((i) => i.status !== 'cancelled')
       .map((i) => ({

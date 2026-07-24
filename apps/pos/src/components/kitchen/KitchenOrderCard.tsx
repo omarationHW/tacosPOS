@@ -189,6 +189,14 @@ export function KitchenOrderCard({
             </span>
           )}
         </div>
+        {order.cashier_name && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[color:var(--color-fg-muted)]">
+            <span>
+              Tomó:{' '}
+              <span className="font-semibold text-[color:var(--color-fg)]">{order.cashier_name}</span>
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4" style={{ maxHeight: '420px' }}>

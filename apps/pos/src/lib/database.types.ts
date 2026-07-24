@@ -768,6 +768,14 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      list_login_business_lines: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          slug: string
+        }[]
+      }
       list_profiles_for_login: {
         Args: never
         Returns: {
@@ -775,6 +783,7 @@ export type Database = {
           full_name: string
           id: string
           role: Database["public"]["Enums"]["user_role"]
+          line_slugs: string[]
         }[]
       }
       peek_initial_pin: { Args: { target_profile_id: string }; Returns: string }

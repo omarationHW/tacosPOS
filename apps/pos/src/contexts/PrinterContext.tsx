@@ -117,7 +117,8 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         .from('orders')
         .select(
           `id, notes, customer_name, daily_order_number, order_type, pickup_at, created_at,
-           table:tables ( name ), business_line:business_lines ( name )`,
+           table:tables ( name ), business_line:business_lines ( name ),
+           cashier:profiles!orders_created_by_fkey ( full_name )`,
         )
         .eq('id', orderId)
         .single();
@@ -146,6 +147,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
       const o = order as any;
       const table = Array.isArray(o.table) ? o.table[0] : o.table;
       const bl = Array.isArray(o.business_line) ? o.business_line[0] : o.business_line;
+      const cashier = Array.isArray(o.cashier) ? o.cashier[0] : o.cashier;
 
       const comanda: ComandaOrder = {
         id: o.id,
@@ -157,6 +159,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         pickup_at: o.pickup_at,
         table_name: table?.name ?? null,
         business_line_name: bl?.name ?? null,
+        cashier_name: cashier?.full_name ?? null,
         items: newItems.map((i) => ({
           quantity: i.quantity,
           product_name: i.product_name,

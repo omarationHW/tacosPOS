@@ -6,6 +6,7 @@ import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 import type { CartItemModifier, OrderType } from './OrderPanel';
+import { effectiveUnitPrice } from '@/lib/pricing';
 
 interface ModifierModalProps {
   product: ProductWithRelations;
@@ -100,18 +101,7 @@ export function ModifierModal({
     return true;
   }, [product, selections]);
 
-  const liveTotal = useMemo(() => {
-    let extra = 0;
-    for (const pmg of product.modifier_groups) {
-      const selectedIds = selections[pmg.modifier_group_id] ?? new Set();
-      for (const mod of pmg.modifier_group.modifiers) {
-        if (selectedIds.has(mod.id)) extra += mod.price_override ?? 0;
-      }
-    }
-    return product.price + extra;
-  }, [product, selections]);
-
-  const handleConfirm = () => {
+  const selectedModifiers = useMemo<CartItemModifier[]>(() => {
     const modifiers: CartItemModifier[] = [];
     for (const pmg of product.modifier_groups) {
       const selectedIds = selections[pmg.modifier_group_id] ?? new Set();
@@ -121,11 +111,22 @@ export function ModifierModal({
             modifierId: mod.id,
             name: mod.name,
             priceOverride: mod.price_override ?? 0,
+            group: pmg.modifier_group.name,
           });
         }
       }
     }
-    onConfirm(modifiers);
+    return modifiers;
+  }, [product, selections]);
+
+  // Incluye la regla del taco mixto (barriga + otra carne = $30).
+  const liveTotal = useMemo(
+    () => effectiveUnitPrice({ price: product.price, modifiers: selectedModifiers }),
+    [product.price, selectedModifiers],
+  );
+
+  const handleConfirm = () => {
+    onConfirm(selectedModifiers);
   };
 
   return (

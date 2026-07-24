@@ -26,6 +26,8 @@ export interface KitchenOrder {
   created_at: string;
   table_name: string | null;
   business_line_name: string | null;
+  /** Nombre del cajero que tomó la orden (orders.created_by → profiles). */
+  cashier_name: string | null;
   order_items: KitchenOrderItem[];
 }
 
@@ -100,6 +102,7 @@ export function useKitchenOrders() {
         business_line_id,
         table:tables ( name ),
         business_line:business_lines ( name ),
+        cashier:profiles!orders_created_by_fkey ( full_name ),
         order_items (
           id,
           product_id,
@@ -136,6 +139,8 @@ export function useKitchenOrders() {
       business_line_name:
         (Array.isArray(order.business_line) ? order.business_line[0] : order.business_line)?.name ??
         null,
+      cashier_name:
+        (Array.isArray(order.cashier) ? order.cashier[0] : order.cashier)?.full_name ?? null,
       order_items: (order.order_items ?? []).map((item: any) => ({
         ...item,
         product: Array.isArray(item.product) ? item.product[0] : item.product,

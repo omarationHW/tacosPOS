@@ -3,11 +3,14 @@ import { AnimatePresence, motion } from 'motion/react';
 import NumberFlow from '@number-flow/react';
 import { Minus, Plus, ShoppingCart, Trash2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { adjustedBasePrice, effectiveUnitPrice } from '@/lib/pricing';
 
 export interface CartItemModifier {
   modifierId: string;
   name: string;
   priceOverride: number;
+  /** Nombre del grupo del modificador (p.ej. "Tipo de carne"). Para reglas de precio. */
+  group?: string | null;
 }
 
 export interface CartItem {
@@ -50,8 +53,7 @@ interface OrderPanelProps {
 }
 
 function getItemTotal(item: CartItem): number {
-  const modTotal = item.modifiers.reduce((s, m) => s + m.priceOverride, 0);
-  return (item.price + modTotal) * item.quantity;
+  return effectiveUnitPrice(item) * item.quantity;
 }
 
 const ORDER_TYPES: Array<{ key: OrderType; label: string }> = [
@@ -86,7 +88,7 @@ function CartItemRow({
       <div className="mb-1 flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-[color:var(--color-fg)]">{item.name}</span>
         <span className="shrink-0 font-mono text-sm tabular-nums text-[color:var(--color-fg-muted)]">
-          ${item.price.toFixed(2)}
+          ${adjustedBasePrice(item.price, item.modifiers).toFixed(2)}
         </span>
       </div>
       {item.modifiers.length > 0 && (
