@@ -82,6 +82,7 @@ export function POS() {
   const [orderType, setOrderType] = useState<OrderType>(appendState?.appendOrderType ?? 'dine_in');
   const [customerName, setCustomerName] = useState('');
   const [pickupTime, setPickupTime] = useState('');
+  const [orderNote, setOrderNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Cuando se entra en modo append, sincroniza orderType con la orden objetivo.
@@ -214,6 +215,7 @@ export function POS() {
 
   const clearCart = () => {
     setCart([]);
+    setOrderNote('');
   };
 
   const cancelAppend = () => {
@@ -265,12 +267,9 @@ export function POS() {
 
     setSubmitting(true);
     try {
-      const notes =
-        orderType === 'takeout'
-          ? 'Para Llevar'
-          : orderType === 'delivery'
-            ? 'A Domicilio'
-            : undefined;
+      // Nota del pedido escrita por el cajero. Se imprime en la comanda y se
+      // muestra en Cocina. El tipo de pedido NO va aquí: ya viaja en `order_type`.
+      const notes = orderNote.trim() || undefined;
 
       // Convertir hora local "HH:MM" a ISO timestamp con la fecha de hoy.
       const pickupAt = pickupTime ? buildPickupIso(pickupTime) : null;
@@ -307,6 +306,7 @@ export function POS() {
       }
       setCart([]);
       setPickupTime('');
+      setOrderNote('');
       if (isCarnitasLine) setCustomerName('');
     } catch {
       toast.error('Error al registrar el pedido');
@@ -375,6 +375,9 @@ export function POS() {
           showPickupTime={isHamburguesasLine && !isAppendMode}
           pickupTime={pickupTime}
           onPickupTimeChange={setPickupTime}
+          showOrderNote={isHamburguesasLine && !isAppendMode}
+          orderNote={orderNote}
+          onOrderNoteChange={setOrderNote}
           onIncrement={increment}
           onDecrement={decrement}
           onUpdateNotes={updateNotes}

@@ -105,7 +105,7 @@ export function useOpenTabs() {
         const shortId = order.id.slice(0, 6).toUpperCase();
         mesa = customerName
           ? `${customerName} (${label})`
-          : (order.notes || `${label} #${shortId}`);
+          : `${label} #${shortId}`;
       } else {
         key = `customer-${customerName.toLowerCase()}`;
         mesa = customerName;

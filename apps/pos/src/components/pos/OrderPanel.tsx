@@ -44,6 +44,10 @@ interface OrderPanelProps {
   showPickupTime?: boolean;
   pickupTime?: string;
   onPickupTimeChange?: (value: string) => void;
+  /** Show the order-level note input (sale impresa en la comanda). */
+  showOrderNote?: boolean;
+  orderNote?: string;
+  onOrderNoteChange?: (value: string) => void;
   onIncrement: (cartKey: string) => void;
   onDecrement: (cartKey: string) => void;
   onUpdateNotes: (cartKey: string, notes: string) => void;
@@ -188,6 +192,9 @@ export function OrderPanel({
   showPickupTime = false,
   pickupTime = '',
   onPickupTimeChange,
+  showOrderNote = false,
+  orderNote = '',
+  onOrderNoteChange,
   onIncrement,
   onDecrement,
   onUpdateNotes,
@@ -323,6 +330,28 @@ export function OrderPanel({
                 ✕
               </button>
             )}
+          </div>
+        )}
+
+        {showOrderNote && (
+          <div className="mt-2 flex items-start gap-2">
+            <label
+              htmlFor="order-note"
+              className="mt-2 shrink-0 text-xs font-medium uppercase tracking-wide text-[color:var(--color-fg-subtle)]"
+            >
+              Nota
+            </label>
+            <textarea
+              id="order-note"
+              value={orderNote}
+              onChange={(e) => onOrderNoteChange?.(e.target.value)}
+              rows={2}
+              placeholder="Nota del pedido (sale en la comanda)..."
+              className="flex-1 resize-none rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm
+                text-[color:var(--color-fg)] placeholder:text-[color:var(--color-fg-subtle)]
+                focus:border-[color:var(--color-accent)] focus:outline-none
+                focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            />
           </div>
         )}
       </div>

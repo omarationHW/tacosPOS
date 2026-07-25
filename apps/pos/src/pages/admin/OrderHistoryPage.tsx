@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useLineFilter } from '@/components/BusinessLineToggle';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Badge } from '@/components/ui/Badge';
+import { orderNoteText } from '@/lib/orderNotes';
 
 interface OrderHistoryItem {
   id: string;
@@ -272,8 +273,10 @@ export function OrderHistoryPage() {
                         <span className="text-[color:var(--color-accent)]">${order.total.toFixed(2)}</span>
                       </div>
                     </div>
-                    {order.notes && (
-                      <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">Notas: {order.notes}</p>
+                    {orderNoteText(order.notes) && (
+                      <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">
+                        Notas: {orderNoteText(order.notes)}
+                      </p>
                     )}
                   </div>
                 )}

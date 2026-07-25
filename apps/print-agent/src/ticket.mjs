@@ -24,6 +24,17 @@ function visibleModifiers(modifiers, orderType) {
   return mods.filter((m) => !HIDDEN_GROUPS_DINE_IN.has((m.group ?? '').trim().toLowerCase()));
 }
 
+// Valores que orders.notes guardaba antes (duplicaban `order_type`). No son
+// notas reales del cliente, así que no se imprimen.
+const LEGACY_TYPE_NOTES = new Set(['para llevar', 'a domicilio']);
+
+/** Nota real del pedido, o null si está vacía o es una etiqueta heredada. */
+function orderNoteText(notes) {
+  const n = String(notes ?? '').trim();
+  if (!n || LEGACY_TYPE_NOTES.has(n.toLowerCase())) return null;
+  return n;
+}
+
 /** Hora corta HH:MM (24h). */
 function shortTime(iso) {
   if (!iso) return '';
@@ -92,9 +103,10 @@ export function formatComanda({ restaurantName, order, items, appended = false }
     t += SEP + '\n';
   }
 
-  // Nota del pedido
-  if (order.notes) {
-    t += `Nota: ${order.notes}\n`;
+  // Nota del pedido (resaltada: es una indicación para cocina).
+  const orderNote = orderNoteText(order.notes);
+  if (orderNote) {
+    t += CMD.BOLD_ON + `NOTA: ${orderNote}\n` + CMD.BOLD_OFF;
     t += SEP + '\n';
   }
 

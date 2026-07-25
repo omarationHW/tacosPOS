@@ -5,6 +5,7 @@
 
 import { CMD, SEP, build, centerText, formatRow } from './escpos';
 import { LOGO_RASTER } from './logo';
+import { orderNoteText } from '../orderNotes';
 
 export interface ComandaItem {
   quantity: number;
@@ -105,9 +106,10 @@ export function buildComanda(order: ComandaOrder): Uint8Array {
     parts.push(SEP + '\n');
   }
 
-  // Nota del pedido
-  if (order.notes) {
-    parts.push(`Nota: ${order.notes}\n`);
+  // Nota del pedido (resaltada: es una indicación para cocina).
+  const orderNote = orderNoteText(order.notes);
+  if (orderNote) {
+    parts.push(CMD.BOLD_ON, `NOTA: ${orderNote}\n`, CMD.BOLD_OFF);
     parts.push(SEP + '\n');
   }
 

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { CartItem, OrderType } from '@/components/pos/OrderPanel';
 import { effectiveUnitPrice } from '@/lib/pricing';
+import { mergeOrderNotes } from '@/lib/orderNotes';
 
 // IVA no se cobra al cliente. La columna `tax` queda en 0 y el total = subtotal.
 // Si en el futuro se reactiva, vuelve a 0.16 y la lógica abajo recalcula.
@@ -80,7 +81,7 @@ export function useOrders() {
     if (coalesceByName && trimmedName) {
       const { data: existing } = await supabase
         .from('orders')
-        .select('id, subtotal, tax, total, daily_order_number')
+        .select('id, subtotal, tax, total, daily_order_number, notes')
         .eq('customer_name', trimmedName)
         .eq('business_line_id', businessLineId)
         .in('status', ['open', 'in_progress'])
@@ -90,7 +91,9 @@ export function useOrders() {
         .maybeSingle();
 
       if (existing) {
-        return await appendToOrder(existing, items);
+        // La nota del nuevo pedido se anexa a la del pedido abierto para que no
+        // se pierda al fusionarse.
+        return await appendToOrder(existing, items, notes);
       }
     }
 
@@ -130,12 +133,12 @@ export function useOrders() {
     return { orderId: order.id, appended: false, dailyOrderNumber: order.daily_order_number ?? null };
   }
 
-  async function appendItemsToOrder(orderId: string, items: CartItem[]): Promise<CreateOrderResult> {
+  async function appendItemsToOrder(orderId: string, items: CartItem[], notes?: string): Promise<CreateOrderResult> {
     if (items.length === 0) throw new Error('No hay items para agregar');
 
     const { data: existing, error } = await supabase
       .from('orders')
-      .select('id, subtotal, tax, total, daily_order_number, status')
+      .select('id, subtotal, tax, total, daily_order_number, notes, status')
       .eq('id', orderId)
       .single();
 
@@ -144,13 +147,29 @@ export function useOrders() {
       throw new Error('No se pueden agregar items a un pedido cerrado');
     }
 
-    return appendToOrder(existing, items);
+    return appendToOrder(existing, items, notes);
   }
 
   async function appendToOrder(
-    existing: { id: string; subtotal: number; tax: number; total: number; daily_order_number: number | null },
+    existing: {
+      id: string;
+      subtotal: number;
+      tax: number;
+      total: number;
+      daily_order_number: number | null;
+      notes?: string | null;
+    },
     items: CartItem[],
+    notes?: string,
   ): Promise<CreateOrderResult> {
+    // La nota se actualiza ANTES de insertar los items: la impresión automática
+    // se dispara con el INSERT de order_items y relee el pedido, así la comanda
+    // ya sale con la nota.
+    const mergedNotes = mergeOrderNotes(existing.notes, notes);
+    if (mergedNotes !== undefined) {
+      await supabase.from('orders').update({ notes: mergedNotes }).eq('id', existing.id);
+    }
+
     await insertOrderItems(existing.id, items);
 
     const addedSubtotal = items.reduce((sum, item) => sum + getItemUnitPrice(item) * item.quantity, 0);

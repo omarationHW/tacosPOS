@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock, Printer, Pencil, Check } from 'lucide-react';
 import { KitchenItemRow } from './KitchenItemRow';
 import { getOrderPhase } from '@/hooks/useKitchenOrders';
+import { orderNoteText } from '@/lib/orderNotes';
 import type { KitchenOrder, KitchenOrderItem, OrderPhase } from '@/hooks/useKitchenOrders';
 
 function minutesAgo(dateStr: string): number {
@@ -53,14 +54,6 @@ const ORDER_TYPE_META: Record<KitchenOrder['order_type'], { label: string; icon:
   takeout:  { label: 'Llevar',   icon: ShoppingBag,     className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400' },
   delivery: { label: 'Domicilio', icon: Bike,           className: 'bg-sky-500/15 text-sky-700 dark:text-sky-400' },
 };
-
-/** Order-level notes that aren't just the duplicated order-type label. */
-function meaningfulOrderNote(order: KitchenOrder): string | null {
-  const n = (order.notes ?? '').trim();
-  if (!n) return null;
-  if (n === 'Para Llevar' || n === 'A Domicilio') return null;
-  return n;
-}
 
 interface PickupInfo {
   label: string;
@@ -120,7 +113,7 @@ export function KitchenOrderCard({
   const numberLabel = order.daily_order_number != null ? `Pedido #${order.daily_order_number}` : null;
   const displayName = [numberLabel, customerName].filter(Boolean).join(' · ') || null;
   const typeMeta = ORDER_TYPE_META[order.order_type];
-  const orderNote = meaningfulOrderNote(order);
+  const orderNote = orderNoteText(order.notes);
   const pickupInfo = formatPickup(order.pickup_at);
 
   const handleAddItems = () => {
