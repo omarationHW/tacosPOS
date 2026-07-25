@@ -17,6 +17,7 @@ import { ModifierModal } from '@/components/pos/ModifierModal';
 import { MontoModal, isCustomMontoProduct } from '@/components/pos/MontoModal';
 import { ProductSearchCommand } from '@/components/pos/ProductSearchCommand';
 import { effectiveUnitPrice } from '@/lib/pricing';
+import { applicableModifierGroups } from '@/lib/drinks';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 
 function makeCartKey(productId: string, modifiers: CartItemModifier[]): string {
@@ -122,7 +123,9 @@ export function POS() {
       setMontoProduct(product);
       return;
     }
-    const hasModifiers = product.modifier_groups && product.modifier_groups.length > 0;
+    // Las bebidas (aguas, refrescos, Boing...) nunca llevan extras: van directo
+    // al carrito aunque tengan grupos de modificadores asignados en la BD.
+    const hasModifiers = applicableModifierGroups(product).length > 0;
     if (hasModifiers) {
       setModifierProduct(product);
       return;

@@ -85,6 +85,8 @@ interface KitchenOrderCardProps {
   onAdjustItemQty?: (orderId: string, item: KitchenOrderItem, newQty: number) => void;
   onRemoveItem?: (orderId: string, item: KitchenOrderItem) => void;
   onEditItem?: (orderId: string, item: KitchenOrderItem) => void;
+  /** False para items sin opciones que editar (bebidas): oculta "Editar". */
+  canEditItemModifiers?: (item: KitchenOrderItem) => boolean;
   /** id del order_item que está siendo modificado (para deshabilitar controles). */
   busyItemId?: string | null;
   busy?: boolean;
@@ -98,6 +100,7 @@ export function KitchenOrderCard({
   onAdjustItemQty,
   onRemoveItem,
   onEditItem,
+  canEditItemModifiers,
   busyItemId,
   busy,
 }: KitchenOrderCardProps) {
@@ -200,6 +203,7 @@ export function KitchenOrderCard({
               item={item}
               orderType={order.order_type}
               editing={editing && canEdit}
+              canEditModifiers={canEditItemModifiers ? canEditItemModifiers(item) : true}
               busy={busyItemId === item.id}
               onIncrement={() => onAdjustItemQty?.(order.id, item, item.quantity + 1)}
               onDecrement={() => onAdjustItemQty?.(order.id, item, item.quantity - 1)}

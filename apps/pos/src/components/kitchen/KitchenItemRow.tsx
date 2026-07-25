@@ -20,6 +20,8 @@ interface KitchenItemRowProps {
   orderType: KitchenOrder['order_type'];
   /** En modo edición se muestran controles de cantidad / quitar / opciones. */
   editing?: boolean;
+  /** false en bebidas: no llevan extras, no hay opciones que editar. */
+  canEditModifiers?: boolean;
   busy?: boolean;
   onIncrement?: () => void;
   onDecrement?: () => void;
@@ -31,6 +33,7 @@ export function KitchenItemRow({
   item,
   orderType,
   editing = false,
+  canEditModifiers = true,
   busy = false,
   onIncrement,
   onDecrement,
@@ -103,17 +106,19 @@ export function KitchenItemRow({
             </button>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onEdit}
-              disabled={busy}
-              aria-label="Editar opciones"
-              className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
-            >
-              <Pencil size={12} />
-              Editar
-            </button>
+            {canEditModifiers && (
+              <button
+                type="button"
+                onClick={onEdit}
+                disabled={busy}
+                aria-label="Editar opciones"
+                className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+              >
+                <Pencil size={12} />
+                Editar
+              </button>
+            )}
             <button
               type="button"
               onClick={onDelete}

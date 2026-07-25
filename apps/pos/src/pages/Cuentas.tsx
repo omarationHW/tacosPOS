@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 import { ModifierModal } from '@/components/pos/ModifierModal';
 import type { CartItemModifier } from '@/components/pos/OrderPanel';
+import { applicableModifierGroups } from '@/lib/drinks';
 
 type DiscountMode = 'fixed' | 'percent';
 
@@ -29,6 +30,12 @@ export function Cuentas() {
   const editingProduct = editingItem
     ? products.find((p) => p.id === editingItem.productId) ?? null
     : null;
+
+  /** Las bebidas no llevan extras, así que no hay nada que editar en ellas. */
+  const canEditModifiers = (productId: string): boolean => {
+    const product = products.find((p) => p.id === productId);
+    return !product || applicableModifierGroups(product).length > 0;
+  };
 
   const handleEditModifiers = (item: TabItem) => {
     if (!products.find((p) => p.id === item.productId)) {
@@ -294,6 +301,7 @@ export function Cuentas() {
                   <EditableTabItem
                     key={item.orderItemId}
                     item={item}
+                    canEditModifiers={canEditModifiers(item.productId)}
                     busy={busyItemId === item.orderItemId}
                     onIncrement={() => handleIncrement(item)}
                     onDecrement={() => handleDecrement(item)}
@@ -425,6 +433,7 @@ export function Cuentas() {
 function EditableTabItem({
   item,
   busy,
+  canEditModifiers = true,
   onIncrement,
   onDecrement,
   onDelete,
@@ -432,6 +441,8 @@ function EditableTabItem({
 }: {
   item: TabItem;
   busy: boolean;
+  /** false en bebidas: no llevan extras, no hay opciones que editar. */
+  canEditModifiers?: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
   onDelete: () => void;
@@ -493,17 +504,19 @@ function EditableTabItem({
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onEdit}
-            disabled={busy}
-            aria-label="Editar opciones"
-            className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
-          >
-            <Pencil size={12} />
-            Editar
-          </button>
+          {canEditModifiers && (
+            <button
+              type="button"
+              onClick={onEdit}
+              disabled={busy}
+              aria-label="Editar opciones"
+              className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-accent-soft)] hover:text-[color:var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+            >
+              <Pencil size={12} />
+              Editar
+            </button>
+          )}
           <button
             type="button"
             onClick={onDelete}

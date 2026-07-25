@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import type { ProductWithRelations } from '@/hooks/useProducts';
 import type { CartItemModifier, OrderType } from './OrderPanel';
 import { effectiveUnitPrice } from '@/lib/pricing';
+import { applicableModifierGroups } from '@/lib/drinks';
 
 interface ModifierModalProps {
   product: ProductWithRelations;
@@ -47,9 +48,12 @@ export function ModifierModal({
     [initialModifierIds],
   );
 
+  // Las bebidas no llevan extras: se quedan sin grupos en cualquier tipo de orden.
+  const groups = useMemo(() => applicableModifierGroups(product), [product]);
+
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
     const init: Record<string, Set<string>> = {};
-    for (const pmg of product.modifier_groups) {
+    for (const pmg of applicableModifierGroups(product)) {
       // Prioridad 1: si hay selecciones iniciales (edit mode), tomarlas tal cual
       const fromInitial = pmg.modifier_group.modifiers
         .filter((m) => initialSet.has(m.id))
@@ -73,10 +77,10 @@ export function ModifierModal({
 
   const visibleGroups = useMemo(
     () =>
-      product.modifier_groups.filter(
+      groups.filter(
         (pmg) => !(isDineIn && getAutoBehavior(pmg.modifier_group.name) !== null),
       ),
-    [product, isDineIn],
+    [groups, isDineIn],
   );
 
   const toggleModifier = (groupId: string, modifierId: string, maxSelect: number) => {
@@ -93,17 +97,17 @@ export function ModifierModal({
   };
 
   const isValid = useMemo(() => {
-    for (const pmg of product.modifier_groups) {
+    for (const pmg of groups) {
       const mg = pmg.modifier_group;
       const selected = selections[pmg.modifier_group_id]?.size ?? 0;
       if (mg.is_required && selected < mg.min_select) return false;
     }
     return true;
-  }, [product, selections]);
+  }, [groups, selections]);
 
   const selectedModifiers = useMemo<CartItemModifier[]>(() => {
     const modifiers: CartItemModifier[] = [];
-    for (const pmg of product.modifier_groups) {
+    for (const pmg of groups) {
       const selectedIds = selections[pmg.modifier_group_id] ?? new Set();
       for (const mod of pmg.modifier_group.modifiers) {
         if (selectedIds.has(mod.id)) {
@@ -117,7 +121,7 @@ export function ModifierModal({
       }
     }
     return modifiers;
-  }, [product, selections]);
+  }, [groups, selections]);
 
   // Incluye la regla del taco mixto (barriga + otra carne = $30).
   const liveTotal = useMemo(

@@ -17,6 +17,7 @@ import { KiloTotalModal } from '@/components/kitchen/KiloTotalModal';
 import { ModifierModal } from '@/components/pos/ModifierModal';
 import type { CartItemModifier } from '@/components/pos/OrderPanel';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { applicableModifierGroups } from '@/lib/drinks';
 
 /** Adapta una orden de cocina al formato de comanda imprimible (reimpresión). */
 function toComanda(order: KitchenOrder): ComandaOrder {
@@ -93,6 +94,15 @@ export function Kitchen() {
       setBusyItemId(null);
     }
   };
+
+  /** Las bebidas no llevan extras, así que no hay opciones que editar. */
+  const canEditItemModifiers = useCallback(
+    (item: KitchenOrderItem) => {
+      const product = products.find((p) => p.id === item.product_id);
+      return !product || applicableModifierGroups(product).length > 0;
+    },
+    [products],
+  );
 
   const handleEditItem = (orderId: string, item: KitchenOrderItem) => {
     const order = orders.find((o) => o.id === orderId);
@@ -224,6 +234,7 @@ export function Kitchen() {
                   onAdjustItemQty={handleAdjustItemQty}
                   onRemoveItem={handleRemoveItem}
                   onEditItem={handleEditItem}
+                  canEditItemModifiers={canEditItemModifiers}
                   busyItemId={busyItemId}
                   busy={busyOrderId === order.id}
                 />
