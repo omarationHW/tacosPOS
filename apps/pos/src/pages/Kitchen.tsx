@@ -5,19 +5,26 @@ import { toast } from 'sonner';
 import {
   useKitchenOrders,
   getOrderPhase,
-  orderHasKiloItems,
+  orderFinalTotalKind,
   orderCurrentTotal,
+  orderFixedSubtotal,
 } from '@/hooks/useKitchenOrders';
-import type { KitchenOrder, KitchenOrderItem } from '@/hooks/useKitchenOrders';
+import type { FinalTotalKind, KitchenOrder, KitchenOrderItem } from '@/hooks/useKitchenOrders';
 import { useProducts } from '@/hooks/useProducts';
 import { usePrinter, type PrinterStatus } from '@/contexts/PrinterContext';
 import type { ComandaOrder } from '@/lib/printer/ticket';
 import { KitchenOrderCard } from '@/components/kitchen/KitchenOrderCard';
-import { KiloTotalModal } from '@/components/kitchen/KiloTotalModal';
+import { FinalTotalModal } from '@/components/kitchen/FinalTotalModal';
 import { ModifierModal } from '@/components/pos/ModifierModal';
 import type { CartItemModifier } from '@/components/pos/OrderPanel';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { applicableModifierGroups } from '@/lib/drinks';
+
+const ORDER_TYPE_LABEL: Record<KitchenOrder['order_type'], string> = {
+  dine_in: 'comer aquí',
+  takeout: 'para llevar',
+  delivery: 'a domicilio',
+};
 
 /** Adapta una orden de cocina al formato de comanda imprimible (reimpresión). */
 function toComanda(order: KitchenOrder): ComandaOrder {
@@ -51,6 +58,7 @@ export function Kitchen() {
     loading,
     advanceOrder,
     deliverWithFinalTotal,
+    updateOrderType,
     adjustItemQuantity,
     cancelItem,
     updateItemModifiers,
@@ -60,8 +68,8 @@ export function Kitchen() {
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   // Item cuyo modal de opciones (modifiers) está abierto para editar.
   const [editingItem, setEditingItem] = useState<{ item: KitchenOrderItem; orderId: string; orderType: KitchenOrder['order_type'] } | null>(null);
-  // Pedido por kilo pendiente de capturar precio final al entregar.
-  const [kiloOrder, setKiloOrder] = useState<KitchenOrder | null>(null);
+  // Pedido de precio variable (kilo o monto) pendiente de capturar el total real.
+  const [finalTotalOrder, setFinalTotalOrder] = useState<{ order: KitchenOrder; kind: FinalTotalKind } | null>(null);
 
   const editingProduct = editingItem
     ? products.find((p) => p.id === editingItem.item.product_id) ?? null
@@ -133,9 +141,11 @@ export function Kitchen() {
   };
 
   const handleAdvance = async (order: KitchenOrder) => {
-    // Al ENTREGAR un pedido por kilo, primero se captura el precio final (peso).
-    if (getOrderPhase(order) === 'ready' && orderHasKiloItems(order)) {
-      setKiloOrder(order);
+    // Al ENTREGAR un pedido de precio variable (por kilo o por monto), primero
+    // se captura cuánto fue realmente: el peso o el monto final servido.
+    const kind = getOrderPhase(order) === 'ready' ? orderFinalTotalKind(order) : null;
+    if (kind) {
+      setFinalTotalOrder({ order, kind });
       return;
     }
     setBusyOrderId(order.id);
@@ -148,16 +158,28 @@ export function Kitchen() {
     }
   };
 
-  const handleKiloConfirm = async (finalTotal: number) => {
-    if (!kiloOrder) return;
-    const order = kiloOrder;
+  const handleFinalTotalConfirm = async (finalTotal: number) => {
+    if (!finalTotalOrder) return;
+    const { order } = finalTotalOrder;
     setBusyOrderId(order.id);
     try {
       await deliverWithFinalTotal(order, finalTotal);
       toast.success(`Pedido entregado — $${finalTotal.toFixed(2)}`);
-      setKiloOrder(null);
+      setFinalTotalOrder(null);
     } catch {
       toast.error('No se pudo guardar el precio. Revisa permisos (cajero/admin).');
+    } finally {
+      setBusyOrderId(null);
+    }
+  };
+
+  const handleChangeOrderType = async (orderId: string, orderType: KitchenOrder['order_type']) => {
+    setBusyOrderId(orderId);
+    try {
+      await updateOrderType(orderId, orderType);
+      toast.success(`Pedido cambiado a ${ORDER_TYPE_LABEL[orderType]}`);
+    } catch {
+      toast.error('No se pudo cambiar el tipo de pedido');
     } finally {
       setBusyOrderId(null);
     }
@@ -235,6 +257,7 @@ export function Kitchen() {
                   onRemoveItem={handleRemoveItem}
                   onEditItem={handleEditItem}
                   canEditItemModifiers={canEditItemModifiers}
+                  onChangeOrderType={handleChangeOrderType}
                   busyItemId={busyItemId}
                   busy={busyOrderId === order.id}
                 />
@@ -244,17 +267,19 @@ export function Kitchen() {
         </motion.div>
       )}
 
-      <KiloTotalModal
-        open={!!kiloOrder}
-        currentTotal={kiloOrder ? orderCurrentTotal(kiloOrder) : 0}
+      <FinalTotalModal
+        open={!!finalTotalOrder}
+        kind={finalTotalOrder?.kind ?? 'kilo'}
+        currentTotal={finalTotalOrder ? orderCurrentTotal(finalTotalOrder.order) : 0}
+        otherItemsTotal={finalTotalOrder ? orderFixedSubtotal(finalTotalOrder.order) : 0}
         orderLabel={
-          kiloOrder?.daily_order_number != null
-            ? `Pedido #${kiloOrder.daily_order_number}`
-            : (kiloOrder?.customer_name ?? 'Pedido')
+          finalTotalOrder?.order.daily_order_number != null
+            ? `Pedido #${finalTotalOrder.order.daily_order_number}`
+            : (finalTotalOrder?.order.customer_name ?? 'Pedido')
         }
-        busy={!!kiloOrder && busyOrderId === kiloOrder.id}
-        onConfirm={handleKiloConfirm}
-        onCancel={() => setKiloOrder(null)}
+        busy={!!finalTotalOrder && busyOrderId === finalTotalOrder.order.id}
+        onConfirm={handleFinalTotalConfirm}
+        onCancel={() => setFinalTotalOrder(null)}
       />
 
       {editingItem && editingProduct && (

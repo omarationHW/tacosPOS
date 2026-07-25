@@ -55,6 +55,8 @@ const ORDER_TYPE_META: Record<KitchenOrder['order_type'], { label: string; icon:
   delivery: { label: 'Domicilio', icon: Bike,           className: 'bg-sky-500/15 text-sky-700 dark:text-sky-400' },
 };
 
+const ORDER_TYPE_OPTIONS: KitchenOrder['order_type'][] = ['dine_in', 'takeout', 'delivery'];
+
 interface PickupInfo {
   label: string;
   urgent: boolean;
@@ -87,6 +89,8 @@ interface KitchenOrderCardProps {
   onEditItem?: (orderId: string, item: KitchenOrderItem) => void;
   /** False para items sin opciones que editar (bebidas): oculta "Editar". */
   canEditItemModifiers?: (item: KitchenOrderItem) => boolean;
+  /** Si se provee, en modo edición se puede cambiar aquí/llevar/domicilio. */
+  onChangeOrderType?: (orderId: string, orderType: KitchenOrder['order_type']) => void;
   /** id del order_item que está siendo modificado (para deshabilitar controles). */
   busyItemId?: string | null;
   busy?: boolean;
@@ -101,6 +105,7 @@ export function KitchenOrderCard({
   onRemoveItem,
   onEditItem,
   canEditItemModifiers,
+  onChangeOrderType,
   busyItemId,
   busy,
 }: KitchenOrderCardProps) {
@@ -164,10 +169,39 @@ export function KitchenOrderCard({
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${typeMeta.className}`}>
-            <typeMeta.icon size={11} />
-            {typeMeta.label}
-          </span>
+          {editing && onChangeOrderType ? (
+            // En edición se puede corregir el tipo: pasa seguido que el cliente
+            // dice "mejor para llevar" cuando el pedido ya está en cocina.
+            <div className="flex items-center gap-1 rounded-full bg-[color:var(--color-bg-inset)] p-0.5">
+              {ORDER_TYPE_OPTIONS.map((type) => {
+                const meta = ORDER_TYPE_META[type];
+                const isCurrent = order.order_type === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => !isCurrent && onChangeOrderType(order.id, type)}
+                    disabled={busy}
+                    title={`Cambiar a ${meta.label}`}
+                    className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-50
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]
+                      ${isCurrent
+                        ? 'bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]'
+                        : 'text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-elevated)] hover:text-[color:var(--color-fg)]'
+                      }`}
+                  >
+                    <meta.icon size={11} />
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${typeMeta.className}`}>
+              <typeMeta.icon size={11} />
+              {typeMeta.label}
+            </span>
+          )}
           {pickupInfo && (
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
               pickupInfo.urgent

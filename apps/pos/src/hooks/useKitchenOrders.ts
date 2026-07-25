@@ -12,6 +12,8 @@ export interface KitchenOrderItem {
   subtotal: number;
   sent_to_kitchen_at: string | null;
   product: { name: string };
+  /** Nombre de la categoría del producto (para detectar pedidos "por monto"). */
+  category_name: string | null;
   modifiers: { id: string; modifierId: string; modifier_name: string; group_name: string | null }[];
 }
 
@@ -53,11 +55,43 @@ export function getOrderPhase(order: KitchenOrder): OrderPhase {
   return 'done';
 }
 
-/** True si el pedido contiene productos "por kilo" (nombre con "kilo"). */
-export function orderHasKiloItems(order: KitchenOrder): boolean {
-  return order.order_items.some(
-    (i) => i.status !== 'cancelled' && i.product.name.toLowerCase().includes('kilo'),
-  );
+/**
+ * Items cuyo precio real se define hasta que se despacha el pedido:
+ * - por kilo: el precio depende del peso (nombre con "kilo").
+ * - por monto: el cliente pide "$X de carnitas" y al servir el monto cambia
+ *   un poco (categoría "Por monto").
+ */
+export function isKiloItem(item: KitchenOrderItem): boolean {
+  return item.product.name.toLowerCase().includes('kilo');
+}
+
+export function isMontoItem(item: KitchenOrderItem): boolean {
+  return (item.category_name ?? '').toLowerCase().includes('monto');
+}
+
+/** Tipo de captura de precio final que necesita el pedido (o null si ninguno). */
+export type FinalTotalKind = 'kilo' | 'monto';
+
+export function orderFinalTotalKind(order: KitchenOrder): FinalTotalKind | null {
+  const active = order.order_items.filter((i) => i.status !== 'cancelled');
+  if (active.some(isKiloItem)) return 'kilo';
+  if (active.some(isMontoItem)) return 'monto';
+  return null;
+}
+
+/**
+ * Subtotal de los items del pedido que NO son de precio variable (bebidas,
+ * tacos, etc.). Sirve para avisar en el modal que el total a capturar incluye
+ * también esos productos.
+ */
+export function orderFixedSubtotal(order: KitchenOrder): number {
+  const kind = orderFinalTotalKind(order);
+  if (!kind) return orderCurrentTotal(order);
+  const isVariable = kind === 'kilo' ? isKiloItem : isMontoItem;
+  const sum = order.order_items
+    .filter((i) => i.status !== 'cancelled' && !isVariable(i))
+    .reduce((s, i) => s + (i.subtotal ?? 0), 0);
+  return Math.round(sum * 100) / 100;
 }
 
 /** Total actual del pedido (suma de subtotales de items no cancelados). */
@@ -66,6 +100,18 @@ export function orderCurrentTotal(order: KitchenOrder): number {
     .filter((i) => i.status !== 'cancelled')
     .reduce((s, i) => s + (i.subtotal ?? 0), 0);
   return Math.round(sum * 100) / 100;
+}
+
+/**
+ * Reescribe el monto dentro de la nota de un item por monto
+ * ("$150 de carnitas" → "$165 de carnitas"). Si la nota no tiene ese formato,
+ * la deja igual.
+ */
+function rewriteMontoNote(notes: string | null, newAmount: number): string | null {
+  if (!notes) return notes;
+  const label = `$${newAmount % 1 === 0 ? newAmount : newAmount.toFixed(2)}`;
+  const rewritten = notes.replace(/^\$\s*[\d.,]+/, label);
+  return rewritten === notes ? notes : rewritten;
 }
 
 function playNewOrderSound() {
@@ -112,7 +158,7 @@ export function useKitchenOrders() {
           notes,
           subtotal,
           sent_to_kitchen_at,
-          product:products ( name ),
+          product:products ( name, category:categories ( name ) ),
           modifiers:order_item_modifiers (
             id,
             modifier_id,
@@ -142,21 +188,27 @@ export function useKitchenOrders() {
         null,
       cashier_name:
         (Array.isArray(order.cashier) ? order.cashier[0] : order.cashier)?.full_name ?? null,
-      order_items: (order.order_items ?? []).map((item: any) => ({
-        ...item,
-        product: Array.isArray(item.product) ? item.product[0] : item.product,
-        modifiers: (item.modifiers ?? []).map((m: any) => {
-          const modRel = Array.isArray(m.modifier) ? m.modifier[0] : m.modifier;
-          const groupRel = modRel?.modifier_group;
-          const group = Array.isArray(groupRel) ? groupRel[0] : groupRel;
-          return {
-            id: m.id,
-            modifierId: m.modifier_id,
-            modifier_name: m.modifier_name,
-            group_name: group?.name ?? null,
-          };
-        }),
-      })),
+      order_items: (order.order_items ?? []).map((item: any) => {
+        const product = Array.isArray(item.product) ? item.product[0] : item.product;
+        const categoryRel = product?.category;
+        const category = Array.isArray(categoryRel) ? categoryRel[0] : categoryRel;
+        return {
+          ...item,
+          product,
+          category_name: category?.name ?? null,
+          modifiers: (item.modifiers ?? []).map((m: any) => {
+            const modRel = Array.isArray(m.modifier) ? m.modifier[0] : m.modifier;
+            const groupRel = modRel?.modifier_group;
+            const group = Array.isArray(groupRel) ? groupRel[0] : groupRel;
+            return {
+              id: m.id,
+              modifierId: m.modifier_id,
+              modifier_name: m.modifier_name,
+              group_name: group?.name ?? null,
+            };
+          }),
+        };
+      }),
     })) as KitchenOrder[];
 
     // Detect new orders and play sound
@@ -244,40 +296,55 @@ export function useKitchenOrders() {
   }
 
   /**
-   * Entrega un pedido "por kilo" capturando el precio final real (por peso).
-   * Ajusta el/los item(s) de kilo (subtotal + unit_price) y el subtotal/total
-   * del pedido, luego lo entrega. El total se aplica vía `subtotal` porque el
-   * trigger enforce_no_iva deriva orders.total del subtotal en pedidos no pagados.
+   * Entrega un pedido de precio variable (por kilo o por monto) capturando el
+   * total real: el de kilo depende del peso y el de monto de lo que realmente
+   * se sirvió. Ajusta el/los item(s) variables (subtotal + unit_price) y el
+   * subtotal/total del pedido, luego lo entrega. El total se aplica vía
+   * `subtotal` porque el trigger enforce_no_iva deriva orders.total del
+   * subtotal en pedidos no pagados.
    * Requiere rol admin/cashier (RLS de orders). Lanza en error.
    */
   async function deliverWithFinalTotal(order: KitchenOrder, finalTotal: number) {
     const active = order.order_items.filter((i) => i.status !== 'cancelled');
-    const isKilo = (i: KitchenOrderItem) => i.product.name.toLowerCase().includes('kilo');
-    const kiloItems = active.filter(isKilo);
-    const nonKiloSubtotal = active
-      .filter((i) => !isKilo(i))
-      .reduce((s, i) => s + i.subtotal, 0);
-    const kiloTarget = Math.max(0, Math.round((finalTotal - nonKiloSubtotal) * 100) / 100);
-    const currentKiloSum = kiloItems.reduce((s, i) => s + i.subtotal, 0);
+    // Solo se ajusta el tipo de item que hace variar el precio: si el pedido
+    // trae items de kilo, el ajuste va a esos; si no, a los de monto.
+    const kind = orderFinalTotalKind(order);
+    const isVariable = (i: KitchenOrderItem) =>
+      kind === 'kilo' ? isKiloItem(i) : kind === 'monto' ? isMontoItem(i) : false;
+    const variableItems = active.filter(isVariable);
+    if (variableItems.length === 0) throw new Error('El pedido no tiene items de precio variable');
 
-    // Repartir el precio final entre los items de kilo (proporcional; el último
-    // absorbe el redondeo restante para que la suma cuadre con finalTotal).
+    const fixedSubtotal = active
+      .filter((i) => !isVariable(i))
+      .reduce((s, i) => s + i.subtotal, 0);
+    const variableTarget = Math.max(0, Math.round((finalTotal - fixedSubtotal) * 100) / 100);
+    const currentVariableSum = variableItems.reduce((s, i) => s + i.subtotal, 0);
+
+    // Repartir el precio final entre los items variables (proporcional; el
+    // último absorbe el redondeo restante para que la suma cuadre con finalTotal).
     let assigned = 0;
-    for (let idx = 0; idx < kiloItems.length; idx++) {
-      const ki = kiloItems[idx];
+    for (let idx = 0; idx < variableItems.length; idx++) {
+      const ki = variableItems[idx];
       let newSubtotal: number;
-      if (idx === kiloItems.length - 1) {
-        newSubtotal = Math.round((kiloTarget - assigned) * 100) / 100;
+      if (idx === variableItems.length - 1) {
+        newSubtotal = Math.round((variableTarget - assigned) * 100) / 100;
       } else {
-        const share = currentKiloSum > 0 ? ki.subtotal / currentKiloSum : 1 / kiloItems.length;
-        newSubtotal = Math.round(kiloTarget * share * 100) / 100;
+        const share =
+          currentVariableSum > 0 ? ki.subtotal / currentVariableSum : 1 / variableItems.length;
+        newSubtotal = Math.round(variableTarget * share * 100) / 100;
         assigned += newSubtotal;
       }
       const newUnit =
         ki.quantity > 0 ? Math.round((newSubtotal / ki.quantity) * 100) / 100 : newSubtotal;
       const { error } = await supabase
         .from('order_items')
-        .update({ subtotal: newSubtotal, unit_price: newUnit })
+        .update({
+          subtotal: newSubtotal,
+          unit_price: newUnit,
+          // El monto va escrito en la nota ("$150 de carnitas"): se reescribe
+          // con el monto real para que cocina, ticket y cuenta digan lo mismo.
+          ...(kind === 'monto' ? { notes: rewriteMontoNote(ki.notes, newUnit) } : {}),
+        })
         .eq('id', ki.id);
       if (error) throw error;
     }
@@ -291,6 +358,19 @@ export function useKitchenOrders() {
 
     // Entregar (items -> delivered, orden -> completed) + refetch.
     await advanceOrder(order);
+  }
+
+  /**
+   * Cambia el tipo de pedido (comer aquí / llevar / domicilio) ya en cocina:
+   * pasa seguido que el cliente decide llevárselo cuando ya se está preparando.
+   */
+  async function updateOrderType(orderId: string, orderType: KitchenOrder['order_type']) {
+    const { error } = await supabase
+      .from('orders')
+      .update({ order_type: orderType })
+      .eq('id', orderId);
+    if (error) throw error;
+    await fetchOrders();
   }
 
   /**
@@ -408,6 +488,7 @@ export function useKitchenOrders() {
     loading,
     advanceOrder,
     deliverWithFinalTotal,
+    updateOrderType,
     adjustItemQuantity,
     cancelItem,
     updateItemModifiers,
