@@ -43,6 +43,7 @@ scripts/
 # Archivos generados
 skills-lock.json
 PROGRESS.md
+RESUMEN-SESION.md
 
 # Respaldos de datos (contienen datos de clientes/ventas)
 backup-*.json
