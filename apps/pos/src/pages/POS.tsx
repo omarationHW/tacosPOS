@@ -14,7 +14,8 @@ import { CategoryTabs } from '@/components/pos/CategoryTabs';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { OrderPanel, type CartItem, type OrderType, type CartItemModifier } from '@/components/pos/OrderPanel';
 import { ModifierModal } from '@/components/pos/ModifierModal';
-import { MontoModal, isCustomMontoProduct } from '@/components/pos/MontoModal';
+import { MontoModal } from '@/components/pos/MontoModal';
+import { isCustomMontoProduct } from '@/lib/monto';
 import { ProductSearchCommand } from '@/components/pos/ProductSearchCommand';
 import { effectiveUnitPrice } from '@/lib/pricing';
 import { applicableModifierGroups } from '@/lib/drinks';
@@ -402,7 +403,6 @@ export function POS() {
       {montoProduct && (
         <MontoModal
           product={montoProduct}
-          orderType={orderType}
           onConfirm={handleMontoConfirm}
           onClose={() => setMontoProduct(null)}
         />

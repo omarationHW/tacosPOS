@@ -8,6 +8,7 @@ import type { ProductWithRelations } from '@/hooks/useProducts';
 import type { CartItemModifier, OrderType } from './OrderPanel';
 import { effectiveUnitPrice } from '@/lib/pricing';
 import { applicableModifierGroups } from '@/lib/drinks';
+import { isMontoProduct } from '@/lib/monto';
 
 interface ModifierModalProps {
   product: ProductWithRelations;
@@ -43,6 +44,9 @@ export function ModifierModal({
   submitLabel,
 }: ModifierModalProps) {
   const isDineIn = orderType === 'dine_in';
+  // Los pedidos por monto siempre se empacan: aunque sean "aquí", hay que
+  // preguntar salsas/acompañamientos en lugar de ocultarlos.
+  const hidesAutoGroups = isDineIn && !isMontoProduct(product);
   const initialSet = useMemo(
     () => new Set(initialModifierIds ?? []),
     [initialModifierIds],
@@ -78,9 +82,9 @@ export function ModifierModal({
   const visibleGroups = useMemo(
     () =>
       groups.filter(
-        (pmg) => !(isDineIn && getAutoBehavior(pmg.modifier_group.name) !== null),
+        (pmg) => !(hidesAutoGroups && getAutoBehavior(pmg.modifier_group.name) !== null),
       ),
-    [groups, isDineIn],
+    [groups, hidesAutoGroups],
   );
 
   const toggleModifier = (groupId: string, modifierId: string, maxSelect: number) => {

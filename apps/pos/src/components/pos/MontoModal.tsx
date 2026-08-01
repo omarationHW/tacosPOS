@@ -5,12 +5,17 @@ import NumberFlow from '@number-flow/react';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { ProductWithRelations } from '@/hooks/useProducts';
-import type { CartItemModifier, OrderType } from './OrderPanel';
+import type { CartItemModifier } from './OrderPanel';
+
+/**
+ * Grupo cuya primera opción viene marcada por defecto ("Con todo"), pero que
+ * sigue visible para poder cambiarla.
+ */
+const PRESELECT_FIRST_GROUP = 'verdura';
 
 interface MontoModalProps {
   product: ProductWithRelations;
-  orderType: OrderType;
-  /** Devuelve el monto escrito y los modifiers (ej. tipo de carne) elegidos. */
+  /** Devuelve el monto escrito y los modifiers (tipo de carne + extras) elegidos. */
   onConfirm: (amount: number, modifiers: CartItemModifier[]) => void;
   onClose: () => void;
 }
@@ -19,14 +24,23 @@ const QUICK_AMOUNTS = [100, 150, 200, 250, 300, 500];
 
 /**
  * Modal para capturar un MONTO libre de carnitas ($ que escribe el cliente)
- * junto con el tipo de carne. Se usa para el producto "Otro monto" (precio 0)
- * de la categoría "Por monto".
+ * junto con el tipo de carne y los extras (salsas/acompañamientos, verdura,
+ * preparación). Se usa para el producto "Otro monto" (precio 0) de la categoría
+ * "Por monto". Los extras se muestran siempre: el pedido se empaca aunque sea
+ * para comer aquí.
  */
-export function MontoModal({ product, orderType, onConfirm, onClose }: MontoModalProps) {
+export function MontoModal({ product, onConfirm, onClose }: MontoModalProps) {
   const [amountStr, setAmountStr] = useState('');
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
     const init: Record<string, Set<string>> = {};
-    for (const pmg of product.modifier_groups) init[pmg.modifier_group_id] = new Set();
+    for (const pmg of product.modifier_groups) {
+      const isPreselect =
+        pmg.modifier_group.name.trim().toLowerCase() === PRESELECT_FIRST_GROUP;
+      const first = isPreselect
+        ? pmg.modifier_group.modifiers.find((m) => m.is_active)
+        : undefined;
+      init[pmg.modifier_group_id] = new Set(first ? [first.id] : []);
+    }
     return init;
   });
 
@@ -67,6 +81,7 @@ export function MontoModal({ product, orderType, onConfirm, onClose }: MontoModa
             modifierId: mod.id,
             name: mod.name,
             priceOverride: mod.price_override ?? 0,
+            group: pmg.modifier_group.name,
           });
         }
       }
@@ -105,7 +120,7 @@ export function MontoModal({ product, orderType, onConfirm, onClose }: MontoModa
                   {product.name}
                 </Dialog.Title>
                 <Dialog.Description className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-                  Escribe el monto y elige el tipo de carne
+                  Escribe el monto, elige el tipo de carne y los extras
                 </Dialog.Description>
               </div>
               <Dialog.Close
@@ -160,11 +175,16 @@ export function MontoModal({ product, orderType, onConfirm, onClose }: MontoModa
                   </div>
                 </section>
 
-                {/* Grupos de modifiers (tipo de carne) */}
+                {/* Grupos de modifiers (tipo de carne, salsas, verdura, preparación) */}
                 {product.modifier_groups.map((pmg) => {
                   const mg = pmg.modifier_group;
                   const selectedIds = selections[pmg.modifier_group_id] ?? new Set();
                   const activeModifiers = mg.modifiers.filter((m) => m.is_active);
+                  const selectedCount = selectedIds.size;
+                  const counterLabel =
+                    mg.max_select === 1
+                      ? 'Selecciona 1'
+                      : `Hasta ${mg.max_select} · ${selectedCount} seleccionado${selectedCount === 1 ? '' : 's'}`;
                   return (
                     <section key={pmg.id}>
                       <header className="mb-2 flex items-center gap-2">
@@ -176,6 +196,9 @@ export function MontoModal({ product, orderType, onConfirm, onClose }: MontoModa
                             Requerido
                           </span>
                         )}
+                        <span className="text-[11px] text-[color:var(--color-fg-subtle)]">
+                          {counterLabel}
+                        </span>
                       </header>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {activeModifiers.map((mod) => {
@@ -230,10 +253,4 @@ export function MontoModal({ product, orderType, onConfirm, onClose }: MontoModa
       </Dialog.Portal>
     </Dialog.Root>
   );
-}
-
-/** True si el producto es el "monto libre" (precio 0 en categoría de montos). */
-export function isCustomMontoProduct(product: ProductWithRelations): boolean {
-  const catName = product.category?.name?.toLowerCase() ?? '';
-  return Number(product.price) === 0 && catName.includes('monto');
 }
