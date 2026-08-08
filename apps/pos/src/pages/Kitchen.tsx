@@ -46,6 +46,7 @@ function toComanda(order: KitchenOrder): ComandaOrder {
         product_name: i.product.name,
         notes: i.notes,
         subtotal: i.subtotal,
+        category_name: i.category_name,
         modifiers: i.modifiers.map((m) => ({ name: m.modifier_name, group: m.group_name })),
       })),
   };

@@ -30,6 +30,7 @@ const DEBOUNCE_MS = 1200; // juntar item + modificadores antes de imprimir
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeItem(row: any) {
   const product = Array.isArray(row.product) ? row.product[0] : row.product;
+  const category = Array.isArray(product?.category) ? product.category[0] : product?.category;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const modifiers = (row.modifiers ?? []).map((m: any) => {
     const modRel = Array.isArray(m.modifier) ? m.modifier[0] : m.modifier;
@@ -43,6 +44,7 @@ function normalizeItem(row: any) {
     product_name: product?.name ?? 'Producto',
     notes: row.notes as string | null,
     subtotal: (row.subtotal ?? 0) as number,
+    category_name: (category?.name ?? null) as string | null,
     modifiers,
   };
 }
@@ -128,7 +130,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         .from('order_items')
         .select(
           `id, quantity, status, notes, subtotal,
-           product:products ( name ),
+           product:products ( name, category:categories ( name ) ),
            modifiers:order_item_modifiers (
              modifier_name,
              modifier:modifiers ( modifier_group:modifier_groups ( name ) )
@@ -165,6 +167,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
           product_name: i.product_name,
           notes: i.notes,
           subtotal: i.subtotal,
+          category_name: i.category_name,
           modifiers: i.modifiers,
         })),
         appended,

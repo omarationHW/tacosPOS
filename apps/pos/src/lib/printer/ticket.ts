@@ -14,18 +14,22 @@ export interface ComandaItem {
   modifiers?: { name: string; group?: string | null }[];
   /** Total de la línea (precio × cantidad, incluye modificadores). */
   subtotal?: number;
+  /** Categoría del producto: distingue los pedidos "por monto", que se empacan
+   *  siempre y por lo tanto sí llevan salsas y verdura en la comanda. */
+  category_name?: string | null;
 }
 
 // Grupos que se ocultan en pedidos "Comer Aquí" (dine_in), igual que en la
 // pantalla de cocina (KitchenItemRow). "Con todo" pertenece a "Verdura".
 const HIDDEN_GROUPS_DINE_IN = new Set(['verdura', 'acompañamientos']);
 
-function visibleModifiers(
-  modifiers: { name: string; group?: string | null }[] | undefined,
-  orderType: string,
-) {
-  const mods = modifiers ?? [];
-  if (orderType !== 'dine_in') return mods;
+function visibleModifiers(item: ComandaItem, orderType: string) {
+  const mods = item.modifiers ?? [];
+  // Un pedido por monto se empaca aunque sea "aquí": en caja SÍ se preguntan
+  // salsas y verdura (ver MontoModal / ModifierModal), así que ocultarlas en la
+  // comanda dejaba a cocina sin la mitad de la instrucción.
+  const alwaysPacked = (item.category_name ?? '').toLowerCase().includes('monto');
+  if (orderType !== 'dine_in' || alwaysPacked) return mods;
   return mods.filter((m) => !HIDDEN_GROUPS_DINE_IN.has((m.group ?? '').trim().toLowerCase()));
 }
 
@@ -94,7 +98,7 @@ export function buildComanda(order: ComandaOrder): Uint8Array {
   parts.push(SEP + '\n');
   for (const item of order.items) {
     parts.push(CMD.BOLD_ON, `${item.quantity}x ${item.product_name}\n`, CMD.BOLD_OFF);
-    for (const mod of visibleModifiers(item.modifiers, order.order_type)) parts.push(`   + ${mod.name}\n`);
+    for (const mod of visibleModifiers(item, order.order_type)) parts.push(`   + ${mod.name}\n`);
     if (item.notes) parts.push(`   >> ${item.notes}\n`);
   }
   parts.push(SEP + '\n');

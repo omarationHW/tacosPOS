@@ -1,5 +1,6 @@
 import { Minus, Plus, Trash2, Pencil } from 'lucide-react';
 import type { KitchenOrderItem, KitchenOrder } from '@/hooks/useKitchenOrders';
+import { isMontoItem } from '@/hooks/useKitchenOrders';
 
 const statusConfig = {
   pending:   { label: 'Pendiente',  className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
@@ -42,7 +43,9 @@ export function KitchenItemRow({
 }: KitchenItemRowProps) {
   const config = statusConfig[item.status];
   const allMods = item.modifiers ?? [];
-  const mods = orderType === 'dine_in'
+  // Los pedidos por monto se empacan aunque sean "aquí", así que en caja sí se
+  // preguntan salsas y verdura: hay que mostrárselas a cocina.
+  const mods = orderType === 'dine_in' && !isMontoItem(item)
     ? allMods.filter((m) => !HIDDEN_GROUPS_DINE_IN.has((m.group_name ?? '').trim().toLowerCase()))
     : allMods;
   return (
