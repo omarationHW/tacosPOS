@@ -428,6 +428,42 @@ export function useKitchenOrders() {
 
     if (error) throw error;
     await recalcOrderTotals(orderId);
+
+    // Si era el último item vivo, el pedido queda vacío: sin items activos
+    // getOrderPhase() lo marca 'done' y la tarjeta se queda sin botón de
+    // avanzar, así que seguiría en Cocina para siempre. Se cierra aquí.
+    const { data: rest } = await supabase
+      .from('order_items')
+      .select('id')
+      .eq('order_id', orderId)
+      .neq('status', 'cancelled');
+    if ((rest ?? []).length === 0) {
+      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId);
+    }
+
+    await fetchOrders();
+  }
+
+  /**
+   * Cancela el pedido completo: marca todos los items vivos como cancelados y
+   * cierra la orden. Es la salida para pedidos que quedaron atorados (mal
+   * capturados, de prueba, o vacíos) y que si no se quedan en Cocina
+   * indefinidamente. Requiere rol admin/cashier (RLS de orders).
+   */
+  async function cancelOrder(orderId: string) {
+    const { error: itemsErr } = await supabase
+      .from('order_items')
+      .update({ status: 'cancelled' })
+      .eq('order_id', orderId)
+      .neq('status', 'cancelled');
+    if (itemsErr) throw itemsErr;
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'cancelled', subtotal: 0, tax: 0, total: 0 })
+      .eq('id', orderId);
+    if (error) throw error;
+
     await fetchOrders();
   }
 
@@ -491,6 +527,7 @@ export function useKitchenOrders() {
     updateOrderType,
     adjustItemQuantity,
     cancelItem,
+    cancelOrder,
     updateItemModifiers,
     refetch: fetchOrders,
   };

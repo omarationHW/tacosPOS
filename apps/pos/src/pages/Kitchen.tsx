@@ -19,6 +19,7 @@ import { FinalTotalModal } from '@/components/kitchen/FinalTotalModal';
 import { ModifierModal } from '@/components/pos/ModifierModal';
 import type { CartItemModifier } from '@/components/pos/OrderPanel';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { applicableModifierGroups } from '@/lib/drinks';
 
 const ORDER_TYPE_LABEL: Record<KitchenOrder['order_type'], string> = {
@@ -63,6 +64,7 @@ export function Kitchen() {
     updateOrderType,
     adjustItemQuantity,
     cancelItem,
+    cancelOrder,
     updateItemModifiers,
   } = useKitchenOrders();
   const { products } = useProducts();
@@ -72,6 +74,8 @@ export function Kitchen() {
   const [editingItem, setEditingItem] = useState<{ item: KitchenOrderItem; orderId: string; orderType: KitchenOrder['order_type'] } | null>(null);
   // Pedido de precio variable (kilo o monto) pendiente de capturar el total real.
   const [finalTotalOrder, setFinalTotalOrder] = useState<{ order: KitchenOrder; kind: FinalTotalKind } | null>(null);
+  // Pedido pendiente de confirmar su cancelación.
+  const [cancelTarget, setCancelTarget] = useState<KitchenOrder | null>(null);
 
   const editingProduct = editingItem
     ? products.find((p) => p.id === editingItem.item.product_id) ?? null
@@ -175,6 +179,20 @@ export function Kitchen() {
     }
   };
 
+  const handleConfirmCancelOrder = async () => {
+    if (!cancelTarget) return;
+    setBusyOrderId(cancelTarget.id);
+    try {
+      await cancelOrder(cancelTarget.id);
+      toast.success('Pedido cancelado');
+      setCancelTarget(null);
+    } catch {
+      toast.error('No se pudo cancelar. Revisa permisos (cajero/admin).');
+    } finally {
+      setBusyOrderId(null);
+    }
+  };
+
   const handleChangeOrderType = async (orderId: string, orderType: KitchenOrder['order_type']) => {
     setBusyOrderId(orderId);
     try {
@@ -255,6 +273,7 @@ export function Kitchen() {
                   onEditItem={handleEditItem}
                   canEditItemModifiers={canEditItemModifiers}
                   onChangeOrderType={handleChangeOrderType}
+                  onCancelOrder={setCancelTarget}
                   busyItemId={busyItemId}
                   busy={busyOrderId === order.id}
                 />
@@ -277,6 +296,24 @@ export function Kitchen() {
         busy={!!finalTotalOrder && busyOrderId === finalTotalOrder.order.id}
         onConfirm={handleFinalTotalConfirm}
         onCancel={() => setFinalTotalOrder(null)}
+      />
+
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleConfirmCancelOrder}
+        title="Cancelar pedido"
+        message={
+          cancelTarget
+            ? `Se cancelará ${
+                cancelTarget.daily_order_number != null
+                  ? `el pedido #${cancelTarget.daily_order_number}`
+                  : (cancelTarget.customer_name ?? 'el pedido')
+              } y desaparecerá de Cocina. No cuenta para las ventas. Esto no se puede deshacer.`
+            : ''
+        }
+        confirmLabel="Sí, cancelar"
+        loading={!!cancelTarget && busyOrderId === cancelTarget.id}
       />
 
       {editingItem && editingProduct && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock, Printer, Pencil, Check } from 'lucide-react';
+import { Flame, CheckCircle, Truck, UtensilsCrossed, ShoppingBag, Bike, MessageSquare, Plus, Clock, Printer, Pencil, Check, Trash2 } from 'lucide-react';
 import { KitchenItemRow } from './KitchenItemRow';
 import { getOrderPhase } from '@/hooks/useKitchenOrders';
 import { orderNoteText } from '@/lib/orderNotes';
@@ -91,6 +91,8 @@ interface KitchenOrderCardProps {
   canEditItemModifiers?: (item: KitchenOrderItem) => boolean;
   /** Si se provee, en modo edición se puede cambiar aquí/llevar/domicilio. */
   onChangeOrderType?: (orderId: string, orderType: KitchenOrder['order_type']) => void;
+  /** Si se provee, permite cancelar/cerrar el pedido completo. */
+  onCancelOrder?: (order: KitchenOrder) => void;
   /** id del order_item que está siendo modificado (para deshabilitar controles). */
   busyItemId?: string | null;
   busy?: boolean;
@@ -106,6 +108,7 @@ export function KitchenOrderCard({
   onEditItem,
   canEditItemModifiers,
   onChangeOrderType,
+  onCancelOrder,
   busyItemId,
   busy,
 }: KitchenOrderCardProps) {
@@ -299,6 +302,37 @@ export function KitchenOrderCard({
           >
             <action.icon size={18} />
             {action.label}
+          </motion.button>
+        )}
+
+        {/* Pedido sin nada que avanzar (se le cancelaron todos los items): sin
+            esto la tarjeta se queda sin botones y no hay forma de sacarla. */}
+        {!action && !editing && onCancelOrder && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onCancelOrder(order)}
+            disabled={busy}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[color:var(--color-danger)] px-4 py-3
+              text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+          >
+            <Trash2 size={18} />
+            Cerrar pedido
+          </motion.button>
+        )}
+
+        {/* En modo edición: salida para pedidos mal capturados que sí traen items. */}
+        {editing && onCancelOrder && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onCancelOrder(order)}
+            disabled={busy}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[color:var(--color-danger)] px-4 py-3
+              text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/10 disabled:cursor-not-allowed disabled:opacity-50
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent-ring)]"
+          >
+            <Trash2 size={18} />
+            Cancelar pedido
           </motion.button>
         )}
       </div>
