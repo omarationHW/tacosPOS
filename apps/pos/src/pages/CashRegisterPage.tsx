@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCashRegister } from '@/hooks/useCashRegister';
+import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 
@@ -43,6 +44,21 @@ export function CashRegisterPage() {
     closeSession,
     addMovement,
   } = useCashRegister();
+
+  const { profile } = useAuth();
+  // Solo admin ve cuánto se vendió. El cajero abre y cierra su turno, registra
+  // depósitos/retiros y cuenta el efectivo, pero no ve ventas ni el esperado:
+  // el esperado revela las ventas (esperado - apertura - depósitos - propinas
+  // + retiros = ventas en efectivo) y además el conteo a ciegas es lo que hace
+  // que el cierre sirva para algo.
+  const canSeeSales = profile?.role === 'admin';
+
+  // Cada venta en efectivo aparece como movimiento con su monto: sumarlas a
+  // mano daría el total que se está ocultando. Al cajero le quedan los
+  // movimientos que él mismo registra (depósitos, retiros) y las propinas.
+  const visibleMovements = canSeeSales
+    ? movements
+    : movements.filter((m) => m.type !== 'sale');
 
   const [tab, setTab] = useState<'current' | 'history'>('current');
   const [openingAmount, setOpeningAmount] = useState('');
@@ -177,48 +193,54 @@ export function CashRegisterPage() {
               {/* Vendido en el turno, por método de pago. Es el número del
                   cierre: incluye tarjeta y transferencia, que no pasan por el
                   cajón y por eso no aparecen en "Esperado en caja". */}
-              <div className="rounded-2xl border-2 border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] p-5">
-                <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
-                    Vendido en el turno
-                  </span>
-                  <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
-                    $<NumberFlow value={salesByMethod.total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                  </span>
+              {canSeeSales && (
+                <div className="rounded-2xl border-2 border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] p-5">
+                  <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
+                      Vendido en el turno
+                    </span>
+                    <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
+                      $<NumberFlow value={salesByMethod.total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <StatTile label="Efectivo"      value={salesByMethod.cash}     tone="success" />
+                    <StatTile label="Tarjeta"       value={salesByMethod.card}     tone="info" />
+                    <StatTile label="Transferencia" value={salesByMethod.transfer} tone="accent" />
+                  </div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <StatTile label="Efectivo"      value={salesByMethod.cash}     tone="success" />
-                  <StatTile label="Tarjeta"       value={salesByMethod.card}     tone="info" />
-                  <StatTile label="Transferencia" value={salesByMethod.transfer} tone="accent" />
-                </div>
-              </div>
+              )}
 
               {/* Movimientos del cajón */}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className={`grid gap-3 sm:grid-cols-2 ${canSeeSales ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
                 <StatTile label="Apertura"  value={activeSession.opening_amount} />
-                <StatTile label="Ventas efectivo" value={summary.sales} tone="success" />
+                {canSeeSales && (
+                  <StatTile label="Ventas efectivo" value={summary.sales} tone="success" />
+                )}
                 <StatTile label="Propinas"  value={summary.tips}       tone="accent" />
                 <StatTile label="Depósitos" value={summary.deposits}   tone="info" />
                 <StatTile label="Retiros"   value={summary.withdrawals} tone="danger" />
               </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border-2 border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
-                    Esperado en caja
-                    <span className="ml-2 normal-case tracking-normal text-[color:var(--color-fg-subtle)]">
-                      (solo efectivo)
+              {canSeeSales && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl border-2 border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] p-5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
+                      Esperado en caja
+                      <span className="ml-2 normal-case tracking-normal text-[color:var(--color-fg-subtle)]">
+                        (solo efectivo)
+                      </span>
                     </span>
-                  </span>
-                  <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
-                    $<NumberFlow value={summary.expected} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                  </span>
-                </div>
-              </motion.div>
+                    <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
+                      $<NumberFlow value={summary.expected} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                    </span>
+                  </div>
+                </motion.div>
+              )}
 
               <div className="grid gap-4 lg:grid-cols-3">
                 {/* Add movement */}
@@ -274,11 +296,11 @@ export function CashRegisterPage() {
                 {/* Movements */}
                 <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] p-4 lg:col-span-2">
                   <h3 className="mb-3 font-display text-base font-semibold text-[color:var(--color-fg)]">Movimientos del turno</h3>
-                  {movements.length === 0 ? (
+                  {visibleMovements.length === 0 ? (
                     <p className="py-6 text-center text-sm text-[color:var(--color-fg-subtle)]">Sin movimientos aún</p>
                   ) : (
                     <div className="max-h-[320px] space-y-2 overflow-y-auto xl:max-h-[440px]">
-                      {movements.map((mov) => {
+                      {visibleMovements.map((mov) => {
                         const meta = movementLabels[mov.type] ?? { label: mov.type, color: 'text-[color:var(--color-fg-muted)]' };
                         return (
                           <div key={mov.id} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg)] px-3 py-2.5">
@@ -311,6 +333,12 @@ export function CashRegisterPage() {
                 ) : (
                   <div className="rounded-2xl border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-5">
                     <h3 className="mb-3 font-display text-base font-semibold text-[color:var(--color-fg)]">Cerrar turno</h3>
+                    {!canSeeSales && (
+                      <p className="mb-3 text-xs text-[color:var(--color-fg-muted)]">
+                        Cuenta el efectivo del cajón y anota aquí cuánto hay. El sistema
+                        guarda el corte para que lo revise el administrador.
+                      </p>
+                    )}
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[color:var(--color-fg-subtle)]">Monto real en caja</label>
                     <input
                       type="number"
@@ -362,7 +390,7 @@ export function CashRegisterPage() {
                         {session.closed_at ? formatDate(session.closed_at) : 'Abierto'}
                       </span>
                     </div>
-                    {session.difference != null && (
+                    {canSeeSales && session.difference != null && (
                       <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs font-semibold tabular-nums
                         ${session.difference === 0
                           ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
@@ -379,10 +407,12 @@ export function CashRegisterPage() {
                       </span>
                     )}
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-4">
+                  <div className={`grid gap-2 ${canSeeSales ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
                     <HistoryField label="Apertura" value={`$${session.opening_amount.toFixed(2)}`} />
-                    <HistoryField label="Esperado" value={session.expected_amount != null ? `$${session.expected_amount.toFixed(2)}` : '—'} />
-                    <HistoryField label="Real"     value={session.closing_amount != null ? `$${session.closing_amount.toFixed(2)}` : '—'} />
+                    {canSeeSales && (
+                      <HistoryField label="Esperado" value={session.expected_amount != null ? `$${session.expected_amount.toFixed(2)}` : '—'} />
+                    )}
+                    <HistoryField label="Contado"  value={session.closing_amount != null ? `$${session.closing_amount.toFixed(2)}` : '—'} />
                     <HistoryField label="Abrió"    value={session.opener_name ?? '—'} />
                   </div>
                   {session.notes && <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">{session.notes}</p>}
