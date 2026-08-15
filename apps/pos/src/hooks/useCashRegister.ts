@@ -30,10 +30,63 @@ export interface CashMovement {
   creator_name?: string;
 }
 
+/** Ventas del turno partidas por método de pago. */
+export interface SalesByMethod {
+  cash: number;
+  card: number;
+  transfer: number;
+  /** Suma de los tres: lo que realmente se vendió en el turno. */
+  total: number;
+}
+
+const EMPTY_SALES: SalesByMethod = { cash: 0, card: 0, transfer: 0, total: 0 };
+
+/**
+ * Suma los pedidos cobrados dentro de la ventana del turno, agrupados por
+ * método de pago.
+ *
+ * Vive aparte de los movimientos de caja a propósito: un movimiento 'sale'
+ * solo se crea en pagos en efectivo (porque solo el efectivo entra al cajón),
+ * así que era la razón de que el cierre ignorara tarjeta y transferencia.
+ * El dinero esperado en el cajón se sigue calculando con los movimientos.
+ */
+async function fetchSalesByMethod(
+  sessionId: string,
+  openedAt: string,
+  closedAt: string | null,
+  businessLineId: string | null,
+): Promise<SalesByMethod> {
+  let query = supabase
+    .from('orders')
+    .select('total, discount, tip, payment_method, paid_at')
+    .not('payment_method', 'is', null)
+    .neq('status', 'cancelled')
+    .gte('paid_at', openedAt);
+
+  if (closedAt) query = query.lte('paid_at', closedAt);
+  if (businessLineId) query = query.eq('business_line_id', businessLineId);
+
+  const { data, error } = await query;
+  if (error || !data) return EMPTY_SALES;
+
+  const acc = { ...EMPTY_SALES };
+  for (const o of data as any[]) {
+    // Mismo criterio que el movimiento de caja en efectivo: lo realmente cobrado.
+    const amount = Number(o.total ?? 0) - Number(o.discount ?? 0) + Number(o.tip ?? 0);
+    if (o.payment_method === 'cash') acc.cash += amount;
+    else if (o.payment_method === 'card') acc.card += amount;
+    else if (o.payment_method === 'transfer') acc.transfer += amount;
+  }
+  acc.total = acc.cash + acc.card + acc.transfer;
+  void sessionId; // el filtro es por ventana de tiempo + línea
+  return acc;
+}
+
 export function useCashRegister() {
   const [activeSession, setActiveSession] = useState<CashSession | null>(null);
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [history, setHistory] = useState<CashSession[]>([]);
+  const [salesByMethod, setSalesByMethod] = useState<SalesByMethod>(EMPTY_SALES);
   const [loading, setLoading] = useState(true);
   const { activeBusinessLine, isAllLines } = useBusinessLine();
 
@@ -54,6 +107,7 @@ export function useCashRegister() {
     if (error || !data) {
       setActiveSession(null);
       setMovements([]);
+      setSalesByMethod(EMPTY_SALES);
       setLoading(false);
       return;
     }
@@ -78,6 +132,16 @@ export function useCashRegister() {
     }) as CashMovement[];
 
     setMovements(normalizedMovs);
+
+    setSalesByMethod(
+      await fetchSalesByMethod(
+        data.id,
+        data.opened_at,
+        null, // turno abierto: hasta ahora
+        data.business_line_id ?? null,
+      ),
+    );
+
     setLoading(false);
   }, [activeBusinessLine, isAllLines]);
 
@@ -125,6 +189,13 @@ export function useCashRegister() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'cash_register_movements' },
+        () => fetchActiveSession(),
+      )
+      // Los cobros con tarjeta/transferencia no generan movimiento de caja, así
+      // que sin esto el desglose no se refrescaría al cobrar.
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
         () => fetchActiveSession(),
       )
       .subscribe();
@@ -221,6 +292,7 @@ export function useCashRegister() {
     history,
     loading,
     summary,
+    salesByMethod,
     openSession,
     closeSession,
     addMovement,

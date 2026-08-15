@@ -38,6 +38,7 @@ export function CashRegisterPage() {
     history,
     loading,
     summary,
+    salesByMethod,
     openSession,
     closeSession,
     addMovement,
@@ -173,10 +174,29 @@ export function CashRegisterPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Summary */}
+              {/* Vendido en el turno, por método de pago. Es el número del
+                  cierre: incluye tarjeta y transferencia, que no pasan por el
+                  cajón y por eso no aparecen en "Esperado en caja". */}
+              <div className="rounded-2xl border-2 border-[color:var(--color-border-strong)] bg-[color:var(--color-bg-elevated)] p-5">
+                <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
+                    Vendido en el turno
+                  </span>
+                  <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
+                    $<NumberFlow value={salesByMethod.total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <StatTile label="Efectivo"      value={salesByMethod.cash}     tone="success" />
+                  <StatTile label="Tarjeta"       value={salesByMethod.card}     tone="info" />
+                  <StatTile label="Transferencia" value={salesByMethod.transfer} tone="accent" />
+                </div>
+              </div>
+
+              {/* Movimientos del cajón */}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <StatTile label="Apertura"  value={activeSession.opening_amount} />
-                <StatTile label="Ventas"    value={summary.sales}      tone="success" />
+                <StatTile label="Ventas efectivo" value={summary.sales} tone="success" />
                 <StatTile label="Propinas"  value={summary.tips}       tone="accent" />
                 <StatTile label="Depósitos" value={summary.deposits}   tone="info" />
                 <StatTile label="Retiros"   value={summary.withdrawals} tone="danger" />
@@ -190,6 +210,9 @@ export function CashRegisterPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-fg-muted)]">
                     Esperado en caja
+                    <span className="ml-2 normal-case tracking-normal text-[color:var(--color-fg-subtle)]">
+                      (solo efectivo)
+                    </span>
                   </span>
                   <span className="font-mono text-4xl font-bold tabular-nums text-[color:var(--color-fg)]">
                     $<NumberFlow value={summary.expected} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />

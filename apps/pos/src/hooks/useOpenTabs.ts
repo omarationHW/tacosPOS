@@ -196,6 +196,9 @@ export function useOpenTabs() {
       .from('orders')
       .update({
         payment_method: paymentMethod,
+        // Marca el cobro para que el cierre de turno pueda sumarlo sin importar
+        // el método de pago (el movimiento de caja solo existe en efectivo).
+        paid_at: new Date().toISOString(),
         discount,
         tip,
       })
