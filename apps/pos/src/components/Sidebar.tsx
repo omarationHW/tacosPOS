@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusinessLine } from '@/contexts/BusinessLineContext';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { PrinterButton } from '@/components/PrinterButton';
 import { ProfileSettingsModal } from '@/components/ProfileSettingsModal';
 
 interface NavItem {
@@ -154,6 +155,12 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className={`border-t border-[color:var(--color-border)] p-2 ${!collapsed ? 'lg:p-3' : ''}`}>
+        {/* Impresora: visible en toda la app, no solo en Cocina. Con una sola
+            tablet, la caja es quien tiene que enlazarla. */}
+        <div className="mb-1">
+          <PrinterButton variant="nav" collapsed={collapsed} />
+        </div>
+
         <div className={`mb-2 ${collapsed ? '' : 'hidden lg:block'}`}>
           <ThemeToggle collapsed={collapsed} />
         </div>

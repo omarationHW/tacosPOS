@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { BluetoothPrinter, isBluetoothSupported } from '@/lib/printer/bluetooth';
 import { buildComanda, type ComandaOrder } from '@/lib/printer/ticket';
@@ -62,20 +63,57 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
   const statusRef = useRef(status);
   statusRef.current = status;
 
+  // Desconexión deliberada: apaga la reconexión automática hasta que alguien
+  // vuelva a conectar a mano.
+  const userDisconnectedRef = useRef(false);
+
   if (!printerRef.current && isBluetoothSupported()) {
     printerRef.current = new BluetoothPrinter();
   }
 
+  // Reconexión silenciosa: al abrir la app y cada vez que se cae el enlace.
+  // Con una sola tablet nadie está parado en Cocina para reconectar a mano, y
+  // una impresora desconectada significa que la comanda automática no sale.
+  const tryReconnect = useCallback(async () => {
+    const printer = printerRef.current;
+    if (!printer || printer.connected) return;
+    // Si el usuario la desconectó a propósito, no se la volvemos a imponer.
+    if (userDisconnectedRef.current) return;
+    try {
+      if (await printer.reconnect()) {
+        setDeviceName(printer.deviceName);
+        setError(null);
+        setStatus('connected');
+      }
+    } catch {
+      /* sigue desconectada; el botón manual sigue disponible */
+    }
+  }, []);
+
   useEffect(() => {
     printerRef.current?.onDisconnect(() => {
       setStatus('disconnected');
-      setError('La impresora se desconectó. Vuelve a conectar.');
+      setError('La impresora se desconectó. Reintentando…');
+      // La tablet pudo suspenderse: reintenta solo en vez de esperar a alguien.
+      setTimeout(() => void tryReconnect(), 2000);
     });
-  }, []);
+    void tryReconnect();
+  }, [tryReconnect]);
+
+  // La pantalla vuelve del suspendido: es el momento típico en que el enlace
+  // BLE murió sin que nadie se diera cuenta.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void tryReconnect();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [tryReconnect]);
 
   const connect = useCallback(async () => {
     const printer = printerRef.current;
     if (!printer) return;
+    userDisconnectedRef.current = false;
     setError(null);
     setStatus('connecting');
     try {
@@ -90,6 +128,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const disconnect = useCallback(() => {
+    userDisconnectedRef.current = true;
     printerRef.current?.disconnect();
     setStatus('disconnected');
     setDeviceName(null);
@@ -113,7 +152,12 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     const printedItems = new Set<string>();
 
     async function flush(orderId: string, itemIds: Set<string>) {
-      if (statusRef.current !== 'connected') return; // solo la tablet conectada imprime
+      // Solo imprime la tablet enlazada a la impresora. Antes de rendirse
+      // intenta recuperar el enlace: si la tablet se suspendió, el estado dice
+      // "desconectada" pero la impresora sigue ahí. Se consulta el transporte
+      // y no statusRef porque el estado de React aún no se re-renderizó.
+      if (!printerRef.current?.connected) await tryReconnect();
+      if (!printerRef.current?.connected) return;
 
       const { data: order } = await supabase
         .from('orders')
@@ -177,7 +221,15 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         await printOrder(comanda);
         newItems.forEach((i) => printedItems.add(i.id));
       } catch {
-        /* si falla, no marcamos impreso: se puede reintentar manual */
+        // No se marca impreso: la reimpresión manual desde Cocina sigue viva.
+        // Antes esto era mudo y la comanda simplemente no salía sin que nadie
+        // se enterara hasta que faltaba el pedido en cocina.
+        const label =
+          o.daily_order_number != null ? `#${o.daily_order_number}` : 'del pedido';
+        toast.error(`No se pudo imprimir la comanda ${label}`, {
+          description: 'Reimprime desde Cocina cuando la impresora responda.',
+          duration: 10000,
+        });
       }
     }
 
@@ -211,7 +263,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
       for (const e of pending.values()) clearTimeout(e.timer);
       supabase.removeChannel(channel);
     };
-  }, [printOrder]);
+  }, [printOrder, tryReconnect]);
 
   return (
     <PrinterContext.Provider value={{ status, deviceName, error, connect, disconnect, printOrder }}>

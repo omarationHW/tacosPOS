@@ -43,6 +43,8 @@ interface BluetoothLike {
     optionalServices?: (number | string)[];
     acceptAllDevices?: boolean;
   }): Promise<BleDevice>;
+  /** Impresoras ya autorizadas antes. No existe en todos los Chrome. */
+  getDevices?(): Promise<BleDevice[]>;
 }
 
 function getBluetooth(): BluetoothLike | null {
@@ -88,6 +90,40 @@ export class BluetoothPrinter {
 
     const server = await device.gatt!.connect();
     this.characteristic = await this.resolveCharacteristic(server);
+  }
+
+  /**
+   * Reconecta SIN gesto del usuario a una impresora ya autorizada en este
+   * dispositivo. Es lo que permite que la tablet de caja recupere sola la
+   * impresora al abrir la app o al despertar de suspensión: sin esto, la
+   * comanda automática se queda muda hasta que alguien va a Cocina y conecta
+   * a mano. Devuelve false si el navegador no soporta getDevices() o si
+   * ninguna de las impresoras recordadas está al alcance.
+   */
+  async reconnect(): Promise<boolean> {
+    const bt = getBluetooth();
+    if (!bt?.getDevices) return false;
+    let devices: BleDevice[];
+    try {
+      devices = await bt.getDevices();
+    } catch {
+      return false;
+    }
+    for (const device of devices) {
+      if (!device.gatt) continue;
+      try {
+        const server = await device.gatt.connect();
+        this.device = device;
+        device.addEventListener('gattserverdisconnected', this.boundDisconnect);
+        this.characteristic = await this.resolveCharacteristic(server);
+        return true;
+      } catch {
+        // Impresora recordada pero apagada o fuera de alcance: prueba la siguiente.
+        this.device = null;
+        this.characteristic = null;
+      }
+    }
+    return false;
   }
 
   private async resolveCharacteristic(server: BleServer): Promise<BleChar> {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ChefHat, Printer, PrinterCheck, Loader2 } from 'lucide-react';
+import { ChefHat } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useKitchenOrders,
@@ -11,7 +11,8 @@ import {
 } from '@/hooks/useKitchenOrders';
 import type { FinalTotalKind, KitchenOrder, KitchenOrderItem } from '@/hooks/useKitchenOrders';
 import { useProducts } from '@/hooks/useProducts';
-import { usePrinter, type PrinterStatus } from '@/contexts/PrinterContext';
+import { usePrinter } from '@/contexts/PrinterContext';
+import { PrinterButton } from '@/components/PrinterButton';
 import type { ComandaOrder } from '@/lib/printer/ticket';
 import { KitchenOrderCard } from '@/components/kitchen/KitchenOrderCard';
 import { FinalTotalModal } from '@/components/kitchen/FinalTotalModal';
@@ -53,7 +54,7 @@ function toComanda(order: KitchenOrder): ComandaOrder {
 }
 
 export function Kitchen() {
-  const { status, deviceName, error, connect, disconnect, printOrder } = usePrinter();
+  const { status, error, printOrder } = usePrinter();
   const {
     orders,
     loading,
@@ -220,12 +221,7 @@ export function Kitchen() {
         )}
 
         <div className="ml-auto">
-          <PrinterButton
-            status={status}
-            deviceName={deviceName}
-            onConnect={connect}
-            onDisconnect={disconnect}
-          />
+          <PrinterButton />
         </div>
       </div>
 
@@ -294,53 +290,5 @@ export function Kitchen() {
         />
       )}
     </div>
-  );
-}
-
-function PrinterButton({
-  status,
-  deviceName,
-  onConnect,
-  onDisconnect,
-}: {
-  status: PrinterStatus;
-  deviceName: string | null;
-  onConnect: () => void;
-  onDisconnect: () => void;
-}) {
-  if (status === 'unsupported') {
-    return (
-      <span className="text-sm text-[color:var(--color-fg-subtle)]">
-        Impresión no disponible en este navegador
-      </span>
-    );
-  }
-
-  if (status === 'connected') {
-    return (
-      <button
-        onClick={onDisconnect}
-        title={deviceName ?? 'Impresora conectada'}
-        className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400"
-      >
-        <PrinterCheck size={16} />
-        Impresora conectada
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={onConnect}
-      disabled={status === 'connecting'}
-      className="flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-fg)] disabled:opacity-60"
-    >
-      {status === 'connecting' ? (
-        <Loader2 size={16} className="animate-spin" />
-      ) : (
-        <Printer size={16} />
-      )}
-      {status === 'connecting' ? 'Conectando…' : 'Conectar impresora'}
-    </button>
   );
 }
